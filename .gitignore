@@ -1,0 +1,41 @@
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# NetBeans
+nbproject/private/
+build/
+dist/
+nbbuild/
+nbdist/
+.nb-gradle/
+
+# IntelliJ
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Variables de entorno
+.env
+.env.local
+.env.*.local
+
+# Archivos temporales
+*.tmp
+*.bak
+*.swp
+
+# Maven wrapper jar, normalmente puede ir versionado,
+# pero si tu proyecto ya funciona sin tocarlo, déjalo.

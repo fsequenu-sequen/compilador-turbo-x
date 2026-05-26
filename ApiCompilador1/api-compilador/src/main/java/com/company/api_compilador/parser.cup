@@ -1,0 +1,319 @@
+/*
+ * parser.cup
+ * Gramática corregida para Turbo X.
+ *
+ * Corrección aplicada:
+ * - Ahora SI puede funcionar con SINO y también sin SINO.
+ * - Se agrega precedencia SIN_SINO para evitar conflicto de "dangling else".
+ */
+
+package com.company.api_compilador;
+
+import java_cup.runtime.Symbol;
+
+parser code {:
+    public StringBuilder reporte = new StringBuilder();
+
+    @Override
+    public void syntax_error(Symbol s) {
+        String valor = (s.value == null) ? "sin valor" : s.value.toString();
+
+        String mensaje = "Error sintáctico en línea " + s.left
+                + ", columna " + s.right
+                + ". Símbolo recibido: " + valor;
+
+        System.err.println(mensaje);
+        reporte.append(mensaje).append("\\n");
+    }
+
+    @Override
+    public void unrecovered_syntax_error(Symbol s) throws Exception {
+        String mensaje = "Error sintáctico no recuperable en línea " + s.left
+                + ", columna " + s.right + ".";
+
+        System.err.println(mensaje);
+        reporte.append(mensaje).append("\\n");
+        throw new Exception(mensaje);
+    }
+:};
+
+/* =========================
+   TERMINALES
+   ========================= */
+
+terminal String IDENTIFICADOR;
+terminal String NUMERO_ENTERO;
+terminal String NUMERO_REAL;
+terminal String VALOR_CADENA;
+terminal String VALOR_CARACTER;
+terminal String VALOR_VERDADERO;
+terminal String VALOR_FALSO;
+
+terminal PROGRAMA;
+terminal INICIO;
+terminal FIN;
+
+terminal TIPO_ENTERO;
+terminal TIPO_REAL;
+terminal TIPO_CADENA;
+terminal TIPO_CARACTER;
+terminal TIPO_LOGICO;
+
+terminal IMPRIMIR;
+terminal LEER;
+
+terminal SI;
+terminal ENTONCES;
+terminal SINO;
+terminal SIN_SINO;
+terminal MIENTRAS;
+terminal HACER;
+
+terminal EVALUAR;
+terminal CASO;
+terminal OTRO;
+terminal PARAR;
+
+terminal GRAFICAR;
+
+terminal OP_ASIG;
+terminal OP_SUMA;
+terminal OP_RESTA;
+terminal OP_MULT;
+terminal OP_DIV;
+terminal OP_POT;
+terminal OP_MOD;
+
+terminal IGUAL_QUE;
+terminal DIFERENTE_QUE;
+terminal MAYOR_QUE;
+terminal MENOR_QUE;
+terminal MAYOR_IGUAL;
+terminal MENOR_IGUAL;
+
+terminal OP_Y;
+terminal OP_O;
+terminal OP_NO;
+
+terminal LLAVE_ABRE;
+terminal LLAVE_CIERRA;
+terminal PARENT_ABRE;
+terminal PARENT_CIERRA;
+terminal FIN_SENTENCIA;
+terminal COMA;
+terminal DOS_PUNTOS;
+
+terminal ERROR;
+terminal ERROR_CADENA;
+terminal ERROR_CARACTER;
+terminal ERROR_NUMERO;
+terminal ERROR_IDENTIFICADOR;
+
+/* =========================
+   NO TERMINALES
+   ========================= */
+
+non terminal programa;
+non terminal lista_instrucciones;
+non terminal instruccion;
+
+non terminal declaracion;
+non terminal asignacion;
+non terminal imprimir;
+non terminal leer;
+
+non terminal si;
+non terminal mientras;
+non terminal evaluar;
+non terminal lista_casos;
+non terminal caso;
+non terminal caso_otro;
+
+non terminal graficar;
+non terminal bloque;
+
+non terminal tipo;
+non terminal expr;
+non terminal valor_caso;
+
+/* =========================
+   PRECEDENCIAS
+   De menor a mayor prioridad.
+   ========================= */
+
+precedence nonassoc SIN_SINO;
+precedence nonassoc SINO;
+precedence left OP_O;
+precedence left OP_Y;
+precedence right OP_NO;
+precedence nonassoc IGUAL_QUE, DIFERENTE_QUE, MAYOR_QUE, MENOR_QUE, MAYOR_IGUAL, MENOR_IGUAL;
+precedence left OP_SUMA, OP_RESTA;
+precedence left OP_MULT, OP_DIV, OP_MOD;
+precedence right OP_POT;
+
+/* =========================
+   SÍMBOLO INICIAL
+   ========================= */
+
+start with programa;
+
+/* =========================
+   GRAMÁTICA PRINCIPAL
+   ========================= */
+
+programa ::=
+      PROGRAMA IDENTIFICADOR INICIO lista_instrucciones FIN
+    ;
+
+lista_instrucciones ::=
+      lista_instrucciones instruccion
+    |
+    ;
+
+instruccion ::=
+      declaracion
+    | asignacion
+    | imprimir
+    | leer
+    | si
+    | mientras
+    | evaluar
+    | graficar
+    | error FIN_SENTENCIA
+    | ERROR FIN_SENTENCIA
+    | ERROR_CADENA FIN_SENTENCIA
+    | ERROR_CARACTER FIN_SENTENCIA
+    | ERROR_NUMERO FIN_SENTENCIA
+    | ERROR_IDENTIFICADOR FIN_SENTENCIA
+    ;
+
+/* =========================
+   DECLARACIONES Y ASIGNACIONES
+   ========================= */
+
+declaracion ::=
+      tipo IDENTIFICADOR FIN_SENTENCIA
+    | tipo IDENTIFICADOR OP_ASIG expr FIN_SENTENCIA
+    ;
+
+tipo ::=
+      TIPO_ENTERO
+    | TIPO_REAL
+    | TIPO_CADENA
+    | TIPO_CARACTER
+    | TIPO_LOGICO
+    ;
+
+asignacion ::=
+      IDENTIFICADOR OP_ASIG expr FIN_SENTENCIA
+    ;
+
+/* =========================
+   ENTRADA Y SALIDA
+   ========================= */
+
+imprimir ::=
+      IMPRIMIR PARENT_ABRE expr PARENT_CIERRA FIN_SENTENCIA
+    ;
+
+leer ::=
+      LEER PARENT_ABRE IDENTIFICADOR PARENT_CIERRA FIN_SENTENCIA
+    ;
+
+/* =========================
+   SI / SINO
+   Ahora se permite:
+   1. SI (...) ENTONCES { ... }
+   2. SI (...) ENTONCES { ... } SINO { ... }
+   ========================= */
+
+si ::=
+      SI PARENT_ABRE expr PARENT_CIERRA ENTONCES bloque %prec SIN_SINO
+    | SI PARENT_ABRE expr PARENT_CIERRA ENTONCES bloque SINO bloque
+    ;
+
+bloque ::=
+      LLAVE_ABRE lista_instrucciones LLAVE_CIERRA
+    ;
+
+/* =========================
+   MIENTRAS
+   ========================= */
+
+mientras ::=
+      MIENTRAS PARENT_ABRE expr PARENT_CIERRA HACER bloque
+    ;
+
+/* =========================
+   EVALUAR / CASO
+   ========================= */
+
+evaluar ::=
+      EVALUAR PARENT_ABRE expr PARENT_CIERRA LLAVE_ABRE lista_casos caso_otro LLAVE_CIERRA
+    ;
+
+lista_casos ::=
+      lista_casos caso
+    | caso
+    ;
+
+caso ::=
+      CASO valor_caso DOS_PUNTOS lista_instrucciones PARAR FIN_SENTENCIA
+    ;
+
+caso_otro ::=
+      OTRO DOS_PUNTOS lista_instrucciones PARAR FIN_SENTENCIA
+    |
+    ;
+
+valor_caso ::=
+      NUMERO_ENTERO
+    | NUMERO_REAL
+    | VALOR_CADENA
+    | VALOR_CARACTER
+    | VALOR_VERDADERO
+    | VALOR_FALSO
+    | IDENTIFICADOR
+    ;
+
+/* =========================
+   GRÁFICAS
+   ========================= */
+
+graficar ::=
+      GRAFICAR IDENTIFICADOR PARENT_ABRE IDENTIFICADOR PARENT_CIERRA OP_ASIG expr FIN_SENTENCIA
+    ;
+
+/* =========================
+   EXPRESIONES GENERALES
+   ========================= */
+
+expr ::=
+      expr OP_SUMA expr
+    | expr OP_RESTA expr
+    | expr OP_MULT expr
+    | expr OP_DIV expr
+    | expr OP_MOD expr
+    | expr OP_POT expr
+
+    | expr MAYOR_QUE expr
+    | expr MENOR_QUE expr
+    | expr MAYOR_IGUAL expr
+    | expr MENOR_IGUAL expr
+    | expr IGUAL_QUE expr
+    | expr DIFERENTE_QUE expr
+
+    | expr OP_Y expr
+    | expr OP_O expr
+    | OP_NO expr
+
+    | PARENT_ABRE expr PARENT_CIERRA
+
+    | NUMERO_ENTERO
+    | NUMERO_REAL
+    | VALOR_CADENA
+    | VALOR_CARACTER
+    | VALOR_VERDADERO
+    | VALOR_FALSO
+    | IDENTIFICADOR
+    ;

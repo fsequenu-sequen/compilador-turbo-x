@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turbo X Compiler</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <div class="app-shell">
+
+        <!-- Barra lateral -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-icon">TX</div>
+                <div>
+                    <h1>Turbo X</h1>
+                    <p>Compilador académico</p>
+                </div>
+            </div>
+
+            <nav class="menu">
+                <button class="menu-item active" data-panel="editorPanel">
+                    <span>⌨️</span>
+                    Editor
+                </button>
+                <button class="menu-item" data-panel="tokensPanel">
+                    <span>🔎</span>
+                    Tokens
+                </button>
+                <button class="menu-item" data-panel="parserPanel">
+                    <span>🌳</span>
+                    Sintáctico
+                </button>
+                <button class="menu-item" data-panel="semanticPanel">
+                    <span>🧠</span>
+                    Semántico
+                </button>
+                <button class="menu-item" data-panel="graphPanel">
+                    <span>📈</span>
+                    Gráficas
+                </button>
+            </nav>
+
+            <div class="sidebar-card">
+                <span class="status-dot"></span>
+                <div>
+                    <strong>Servidor</strong>
+                    <p id="serverStatus">Pendiente de conectar</p>
+                </div>
+            </div>
+
+            <div class="mini-info">
+                <p><strong>Lenguaje:</strong> Turbo X</p>
+                <p><strong>Lexer:</strong> JFlex</p>
+                <p><strong>Parser:</strong> JCUP</p>
+                <p><strong>Backend:</strong> Java / Spring Boot</p>
+            </div>
+        </aside>
+
+        <!-- Contenido principal -->
+        <main class="main-content">
+
+            <!-- Encabezado -->
+            <header class="topbar">
+                <div>
+                    <p class="eyebrow">Proyecto compilador</p>
+                    <h2>Análisis Léxico, Sintáctico y Semántico</h2>
+                </div>
+
+                <div class="topbar-actions">
+                    <input type="file" id="archivoTxt" accept=".txt" hidden>
+                    <button class="btn secondary" id="btnArchivo">Cargar .txt</button>
+                    <button class="btn ghost" id="btnEjemplo">Ejemplo</button>
+                    <button class="btn primary" id="btnCompilar">Compilar código</button>
+                </div>
+            </header>
+
+            <!-- Tarjetas de resumen -->
+            <section class="dashboard-grid">
+                <article class="metric-card">
+                    <span class="metric-label">Tokens</span>
+                    <strong id="metricTokens">0</strong>
+                    <small>Reconocidos por JFlex</small>
+                </article>
+
+                <article class="metric-card">
+                    <span class="metric-label">Errores léxicos</span>
+                    <strong id="metricLexErrors">0</strong>
+                    <small>Caracteres o literales inválidos</small>
+                </article>
+
+                <article class="metric-card">
+                    <span class="metric-label">Sintaxis</span>
+                    <strong id="metricSintaxis">Pendiente</strong>
+                    <small>Validación con JCUP</small>
+                </article>
+
+                <article class="metric-card">
+                    <span class="metric-label">Semántica</span>
+                    <strong id="metricSemantica">Pendiente</strong>
+                    <small>Tipos y variables</small>
+                </article>
+            </section>
+
+            <!-- Panel de Editor -->
+            <section id="editorPanel" class="workspace-panel active-panel">
+                <div class="panel-header">
+                    <div>
+                        <h3>Editor de código</h3>
+                        <p>Escribe o carga un archivo fuente del lenguaje Turbo X.</p>
+                    </div>
+
+                    <div class="chip-group">
+                        <span class="chip">PROGRAMA</span>
+                        <span class="chip">INICIO</span>
+                        <span class="chip">FIN</span>
+                        <span class="chip">GRAFICAR</span>
+                    </div>
+                </div>
+
+                <div class="editor-card">
+                    <div class="editor-toolbar">
+                        <span class="file-name" id="fileName">sin_archivo.tx</span>
+                        <div class="editor-tools">
+                            <button class="tool-btn" id="btnLimpiar">Limpiar</button>
+                            <button class="tool-btn" id="btnCopiar">Copiar</button>
+                        </div>
+                    </div>
+
+                    <div class="code-wrapper">
+                        <div id="lineNumbers" class="line-numbers">1</div>
+                        <textarea id="codigo" spellcheck="false" placeholder="Escribe aquí tu código Turbo X..."></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Panel de Tokens -->
+            <section id="tokensPanel" class="workspace-panel">
+                <div class="panel-header">
+                    <div>
+                        <h3>Tabla de tokens</h3>
+                        <p>Vista preparada para mostrar el resultado del analizador léxico.</p>
+                    </div>
+                </div>
+
+                <div class="table-card">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Tipo token</th>
+                                <th>Lexema</th>
+                                <th>Línea</th>
+                                <th>Columna</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaTokens">
+                            <tr>
+                                <td colspan="5" class="empty-row">Presiona “Compilar código” para visualizar los tokens.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Panel Sintáctico -->
+            <section id="parserPanel" class="workspace-panel">
+                <div class="panel-header">
+                    <div>
+                        <h3>Análisis sintáctico</h3>
+                        <p>Espacio diseñado para mostrar errores JCUP, reglas BNF aplicadas y AST.</p>
+                    </div>
+                </div>
+
+                <div class="split-grid">
+                    <article class="result-card">
+                        <h4>Resultado del parser</h4>
+                        <div id="parserStatus" class="result-box waiting">
+                            Pendiente de implementar conexión con JCUP.
+                        </div>
+                    </article>
+
+                    <article class="result-card">
+                        <h4>Árbol sintáctico abstracto</h4>
+                        <pre id="astOutput" class="code-output">AST pendiente...</pre>
+                    </article>
+                </div>
+            </section>
+
+            <!-- Panel Semántico -->
+            <section id="semanticPanel" class="workspace-panel">
+                <div class="panel-header">
+                    <div>
+                        <h3>Análisis semántico</h3>
+                        <p>Validación de declaración de variables, asignaciones y compatibilidad de tipos.</p>
+                    </div>
+                </div>
+
+                <div class="split-grid">
+                    <article class="result-card">
+                        <h4>Tabla de símbolos</h4>
+                        <table class="mini-table">
+                            <thead>
+                                <tr>
+                                    <th>Variable</th>
+                                    <th>Tipo</th>
+                                    <th>Valor</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaSimbolos">
+                                <tr>
+                                    <td colspan="4" class="empty-row">Sin datos semánticos todavía.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </article>
+
+                    <article class="result-card">
+                        <h4>Errores semánticos</h4>
+                        <div id="semanticErrors" class="result-box waiting">
+                            Pendiente de validar tipos con Java.
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <!-- Panel Gráficas -->
+            <section id="graphPanel" class="workspace-panel">
+                <div class="panel-header">
+                    <div>
+                        <h3>Módulo de gráficas</h3>
+                        <p>Diseñado para mostrar la función detectada y la URL generada para Desmos u otra herramienta.</p>
+                    </div>
+                </div>
+
+                <div class="graph-layout">
+                    <article class="result-card">
+                        <h4>Función detectada</h4>
+                        <div id="funcionDetectada" class="math-preview">f(x) = pendiente</div>
+                    </article>
+
+                    <article class="result-card">
+                        <h4>URL generada</h4>
+                        <div id="urlGrafica" class="url-box">No se ha generado una URL.</div>
+                        <button class="btn secondary full-width" id="btnAbrirGrafica" disabled>Abrir gráfica</button>
+                    </article>
+                </div>
+            </section>
+
+            <!-- Consola inferior -->
+            <section class="console-panel">
+                <div class="console-header">
+                    <h3>Consola de compilación</h3>
+                    <button class="tool-btn" id="btnLimpiarConsola">Limpiar consola</button>
+                </div>
+
+                <div id="consola" class="console-body">
+                    <p><span>[Sistema]</span> Interfaz lista. La lógica del backend se conectará después.</p>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
