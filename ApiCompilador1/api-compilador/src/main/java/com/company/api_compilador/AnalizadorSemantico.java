@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -12,9 +13,22 @@ public class AnalizadorSemantico {
 
     private final TablaSimbolos tabla = new TablaSimbolos();
     private final List<ErrorSemantico> errores = new ArrayList<>();
+    private final Set<String> erroresDivisionCeroEmitidos = new HashSet<>();
 
     private static final Set<String> TIPOS = new HashSet<>(Arrays.asList(
             "ENTERO", "REAL", "CADENA", "CARACTER", "LOGICO"
+    ));
+
+    private static final Set<String> FUNCIONES_MATEMATICAS = new HashSet<>(Arrays.asList(
+            "SIN", "SEN", "COS", "TAN",
+            "SQRT", "RAIZ",
+            "ABS", "ABSOLUTO",
+            "LOG", "LN", "EXP",
+            "MAX", "MIN"
+    ));
+
+    private static final Set<String> CONSTANTES_MATEMATICAS = new HashSet<>(Arrays.asList(
+            "PI", "E"
     ));
 
     private static final Set<String> PALABRAS_RESERVADAS = new HashSet<>(Arrays.asList(
@@ -93,12 +107,6 @@ public class AnalizadorSemantico {
             return;
         }
 
-        /*
-         * IMPORTANTE:
-         * Antes se usaba startsWith("SI"), pero eso provocaba que la palabra SINO
-         * fuera interpretada como SI, porque SINO también inicia con "SI".
-         * Por eso ahora validamos que realmente sea SI seguido de espacio o paréntesis.
-         */
         if (esInicioSi(lineaSinLlaves)) {
             analizarCondicion(lineaSinLlaves, numeroLinea, "SI");
             return;
@@ -149,6 +157,11 @@ public class AnalizadorSemantico {
 
         if (PALABRAS_RESERVADAS.contains(nombre.toUpperCase())) {
             agregarError(numeroLinea, nombre, "No se puede usar una palabra reservada como nombre de variable.");
+            return;
+        }
+
+        if (FUNCIONES_MATEMATICAS.contains(nombre.toUpperCase()) || CONSTANTES_MATEMATICAS.contains(nombre.toUpperCase())) {
+            agregarError(numeroLinea, nombre, "No se recomienda usar el nombre de una función o constante matemática como variable.");
             return;
         }
 
@@ -221,6 +234,7 @@ public class AnalizadorSemantico {
 
     private void analizarImprimir(String linea, int numeroLinea) {
         String contenido = extraerContenidoFuncion(linea, "IMPRIMIR");
+
         if (contenido.isEmpty()) {
             agregarError(numeroLinea, "IMPRIMIR", "La instrucción IMPRIMIR necesita una expresión.");
             return;
@@ -239,7 +253,7 @@ public class AnalizadorSemantico {
 
         String tipoCondicion = inferirTipo(condicion, numeroLinea, "condicion");
 
-        if (!"LOGICO".equals(tipoCondicion)) {
+        if (!"LOGICO".equals(tipoCondicion) && !"DESCONOCIDO".equals(tipoCondicion)) {
             agregarError(numeroLinea, condicion,
                     "La condición de " + instruccion + " debe ser de tipo LOGICO, pero se obtuvo " + tipoCondicion + ".");
         }
@@ -247,16 +261,26 @@ public class AnalizadorSemantico {
 
     private void analizarEvaluar(String linea, int numeroLinea) {
         String expresion = extraerEntreParentesis(linea);
+
         if (expresion.isEmpty()) {
             agregarError(numeroLinea, "EVALUAR", "La instrucción EVALUAR necesita una expresión.");
             return;
         }
 
-        inferirTipo(expresion, numeroLinea, "evaluar");
+        String tipo = inferirTipo(expresion, numeroLinea, "evaluar");
+        if ("REAL".equals(tipo) || "DESCONOCIDO".equals(tipo)) {
+            return;
+        }
+
+        if (!"ENTERO".equals(tipo) && !"CADENA".equals(tipo) && !"CARACTER".equals(tipo) && !"LOGICO".equals(tipo)) {
+            agregarError(numeroLinea, expresion,
+                    "La instrucción EVALUAR usa un tipo no válido: " + tipo + ".");
+        }
     }
 
     private void analizarCaso(String linea, int numeroLinea) {
         String caso = linea.replaceFirst("^CASO", "").replace(":", "").trim();
+
         if (caso.isEmpty()) {
             agregarError(numeroLinea, "CASO", "La instrucción CASO necesita un valor.");
             return;
@@ -301,6 +325,10 @@ public class AnalizadorSemantico {
             return "LOGICO";
         }
 
+        if (CONSTANTES_MATEMATICAS.contains(expresion.toUpperCase())) {
+            return "REAL";
+        }
+
         if (esNumeroEntero(expresion)) {
             return "ENTERO";
         }
@@ -309,13 +337,9 @@ public class AnalizadorSemantico {
             return "REAL";
         }
 
-        if (esIdentificadorValido(expresion)) {
-            return tipoDeIdentificador(expresion, numeroLinea);
-        }
-
         if (expresion.startsWith("NO ")) {
             String tipo = inferirTipo(expresion.substring(3), numeroLinea, contexto);
-            if (!"LOGICO".equals(tipo)) {
+            if (!"LOGICO".equals(tipo) && !"DESCONOCIDO".equals(tipo)) {
                 agregarError(numeroLinea, expresion, "El operador NO solo puede aplicarse a expresiones LOGICAS.");
             }
             return "LOGICO";
@@ -323,24 +347,47 @@ public class AnalizadorSemantico {
 
         if (expresion.startsWith("!")) {
             String tipo = inferirTipo(expresion.substring(1), numeroLinea, contexto);
-            if (!"LOGICO".equals(tipo)) {
+            if (!"LOGICO".equals(tipo) && !"DESCONOCIDO".equals(tipo)) {
                 agregarError(numeroLinea, expresion, "El operador ! solo puede aplicarse a expresiones LOGICAS.");
             }
             return "LOGICO";
         }
 
-        if (contieneOperadorLogico(expresion)) {
-            validarIdentificadores(expresion, numeroLinea);
-            validarOperandosLogicos(expresion, numeroLinea);
+        LlamadaFuncion llamada = extraerLlamadaFuncion(expresion);
+        if (llamada != null) {
+            return inferirTipoFuncion(llamada, numeroLinea);
+        }
+
+        Operacion opLogica = encontrarOperadorLogicoPrincipal(expresion);
+        if (opLogica != null) {
+            String tipoIzq = inferirTipo(opLogica.izquierda, numeroLinea, contexto);
+            String tipoDer = inferirTipo(opLogica.derecha, numeroLinea, contexto);
+
+            if (!"LOGICO".equals(tipoIzq) && !"DESCONOCIDO".equals(tipoIzq)) {
+                agregarError(numeroLinea, opLogica.izquierda,
+                        "Los operadores lógicos solo pueden trabajar con expresiones LOGICAS.");
+            }
+
+            if (!"LOGICO".equals(tipoDer) && !"DESCONOCIDO".equals(tipoDer)) {
+                agregarError(numeroLinea, opLogica.derecha,
+                        "Los operadores lógicos solo pueden trabajar con expresiones LOGICAS.");
+            }
+
             return "LOGICO";
         }
 
-        if (contieneOperadorRelacional(expresion)) {
-            return inferirTipoRelacional(expresion, numeroLinea);
+        Operacion opRelacional = encontrarOperadorRelacionalPrincipal(expresion);
+        if (opRelacional != null) {
+            return inferirTipoRelacional(opRelacional, numeroLinea);
         }
 
-        if (contieneOperadorAritmetico(expresion)) {
-            return inferirTipoAritmetico(expresion, numeroLinea);
+        Operacion opAritmetica = encontrarOperadorAritmeticoPrincipal(expresion);
+        if (opAritmetica != null) {
+            return inferirTipoAritmetico(opAritmetica, numeroLinea);
+        }
+
+        if (esIdentificadorValido(expresion)) {
+            return tipoDeIdentificador(expresion, numeroLinea);
         }
 
         validarIdentificadores(expresion, numeroLinea);
@@ -348,45 +395,67 @@ public class AnalizadorSemantico {
     }
 
     private String inferirTipoConVariableLocalX(String expresion, int numeroLinea) {
-        boolean xYaExiste = tabla.existe("x");
-
-        if (!xYaExiste) {
+        if (!tabla.existe("x")) {
             tabla.declarar(new Simbolo("x", "REAL", "VARIABLE_LOCAL_GRAFICA", numeroLinea, true));
         }
 
         return inferirTipo(expresion, numeroLinea, "graficar");
     }
 
-    private String inferirTipoRelacional(String expresion, int numeroLinea) {
-        String operador = obtenerOperadorRelacional(expresion);
+    private String inferirTipoFuncion(LlamadaFuncion llamada, int numeroLinea) {
+        String nombre = llamada.nombre.toUpperCase();
 
-        if (operador == null) {
-            return "LOGICO";
+        if (!FUNCIONES_MATEMATICAS.contains(nombre)) {
+            agregarError(numeroLinea, llamada.nombre,
+                    "La función '" + llamada.nombre + "' no está definida en Turbo X.");
+            return "DESCONOCIDO";
         }
 
-        String[] partes = expresion.split(Pattern.quote(operador), 2);
-
-        if (partes.length < 2) {
-            agregarError(numeroLinea, expresion, "Expresión relacional incompleta.");
-            return "LOGICO";
+        if (llamada.argumentos.isEmpty()) {
+            agregarError(numeroLinea, llamada.nombre,
+                    "La función '" + llamada.nombre + "' necesita al menos un argumento.");
+            return "DESCONOCIDO";
         }
 
-        String tipoIzquierda = inferirTipo(partes[0], numeroLinea, "relacional");
-        String tipoDerecha = inferirTipo(partes[1], numeroLinea, "relacional");
+        boolean aceptaMultiples = nombre.equals("MAX") || nombre.equals("MIN");
 
-        if (operador.equals(">") || operador.equals("<") || operador.equals(">=") || operador.equals("<=")) {
-            if (!esNumerico(tipoIzquierda) || !esNumerico(tipoDerecha)) {
-                agregarError(numeroLinea, expresion,
-                        "Los operadores " + operador + " solo pueden comparar valores numéricos.");
+        if (!aceptaMultiples && llamada.argumentos.size() != 1) {
+            agregarError(numeroLinea, llamada.nombre,
+                    "La función '" + llamada.nombre + "' recibe exactamente un argumento.");
+        }
+
+        for (String arg : llamada.argumentos) {
+            String tipoArg = inferirTipo(arg, numeroLinea, "funcion");
+
+            if (!esNumerico(tipoArg) && !"DESCONOCIDO".equals(tipoArg)) {
+                agregarError(numeroLinea, arg,
+                        "La función matemática '" + llamada.nombre + "' solo acepta argumentos numéricos.");
             }
         }
 
-        if (operador.equals("==") || operador.equals("!=")) {
+        return "REAL";
+    }
+
+    private String inferirTipoRelacional(Operacion op, int numeroLinea) {
+        String tipoIzquierda = inferirTipo(op.izquierda, numeroLinea, "relacional");
+        String tipoDerecha = inferirTipo(op.derecha, numeroLinea, "relacional");
+
+        if (op.operador.equals(">") || op.operador.equals("<") || op.operador.equals(">=") || op.operador.equals("<=")) {
+            if ((!esNumerico(tipoIzquierda) && !"DESCONOCIDO".equals(tipoIzquierda))
+                    || (!esNumerico(tipoDerecha) && !"DESCONOCIDO".equals(tipoDerecha))) {
+                agregarError(numeroLinea, op.izquierda + " " + op.operador + " " + op.derecha,
+                        "Los operadores " + op.operador + " solo pueden comparar valores numéricos.");
+            }
+        }
+
+        if (op.operador.equals("==") || op.operador.equals("!=")) {
             boolean compatibles = tipoIzquierda.equals(tipoDerecha)
-                    || (esNumerico(tipoIzquierda) && esNumerico(tipoDerecha));
+                    || (esNumerico(tipoIzquierda) && esNumerico(tipoDerecha))
+                    || "DESCONOCIDO".equals(tipoIzquierda)
+                    || "DESCONOCIDO".equals(tipoDerecha);
 
             if (!compatibles) {
-                agregarError(numeroLinea, expresion,
+                agregarError(numeroLinea, op.izquierda + " " + op.operador + " " + op.derecha,
                         "No se pueden comparar valores de tipo " + tipoIzquierda + " y " + tipoDerecha + ".");
             }
         }
@@ -394,51 +463,43 @@ public class AnalizadorSemantico {
         return "LOGICO";
     }
 
-    private String inferirTipoAritmetico(String expresion, int numeroLinea) {
-        List<String> operandos = obtenerOperandosAritmeticos(expresion);
-        boolean tieneReal = false;
+    private String inferirTipoAritmetico(Operacion op, int numeroLinea) {
+        String tipoIzquierda = inferirTipo(op.izquierda, numeroLinea, "aritmetico");
+        String tipoDerecha = inferirTipo(op.derecha, numeroLinea, "aritmetico");
 
-        for (String operando : operandos) {
-            String limpio = limpiarExpresion(operando);
+        if (!esNumerico(tipoIzquierda) && !"DESCONOCIDO".equals(tipoIzquierda)) {
+            agregarError(numeroLinea, op.izquierda,
+                    "La expresión aritmética contiene un valor de tipo " + tipoIzquierda
+                            + ", pero se esperaba ENTERO o REAL.");
+        }
 
-            if (limpio.isEmpty()) {
-                continue;
-            }
+        if (!esNumerico(tipoDerecha) && !"DESCONOCIDO".equals(tipoDerecha)) {
+            agregarError(numeroLinea, op.derecha,
+                    "La expresión aritmética contiene un valor de tipo " + tipoDerecha
+                            + ", pero se esperaba ENTERO o REAL.");
+        }
 
-            String tipo = inferirTipo(limpio, numeroLinea, "aritmetico");
-
-            if (!esNumerico(tipo)) {
-                agregarError(numeroLinea, limpio,
-                        "La expresión aritmética contiene un valor de tipo " + tipo + ", pero se esperaba ENTERO o REAL.");
-            }
-
-            if ("REAL".equals(tipo)) {
-                tieneReal = true;
+        if (op.operador.equals("/") || op.operador.equals("%")) {
+            if (esExpresionConstanteCero(op.derecha)) {
+                String clave = numeroLinea + ":" + op.operador + ":" + op.derecha;
+                if (!erroresDivisionCeroEmitidos.contains(clave)) {
+                    erroresDivisionCeroEmitidos.add(clave);
+                    String nombreOperacion = op.operador.equals("/") ? "división" : "módulo";
+                    agregarError(numeroLinea, op.derecha,
+                            "No se permite " + nombreOperacion + " entre cero. El divisor evaluado es 0.");
+                }
             }
         }
 
-        if (expresion.contains("/")) {
+        if (op.operador.equals("/")) {
             return "REAL";
         }
 
-        return tieneReal ? "REAL" : "ENTERO";
-    }
-
-    private void validarOperandosLogicos(String expresion, int numeroLinea) {
-        String[] partes = expresion.split("\\s+(Y|O)\\s+|&&|\\|\\|");
-
-        for (String parte : partes) {
-            String limpio = limpiarExpresion(parte);
-            if (limpio.isEmpty()) {
-                continue;
-            }
-
-            String tipo = inferirTipo(limpio, numeroLinea, "logico");
-            if (!"LOGICO".equals(tipo)) {
-                agregarError(numeroLinea, limpio,
-                        "Los operadores lógicos solo pueden trabajar con expresiones LOGICAS.");
-            }
+        if ("REAL".equals(tipoIzquierda) || "REAL".equals(tipoDerecha)) {
+            return "REAL";
         }
+
+        return "ENTERO";
     }
 
     private void validarIdentificadores(String expresion, int numeroLinea) {
@@ -447,8 +508,15 @@ public class AnalizadorSemantico {
 
         while (matcher.find()) {
             String posibleIdentificador = matcher.group();
+            String mayuscula = posibleIdentificador.toUpperCase();
 
-            if (PALABRAS_RESERVADAS.contains(posibleIdentificador.toUpperCase())) {
+            if (PALABRAS_RESERVADAS.contains(mayuscula)
+                    || FUNCIONES_MATEMATICAS.contains(mayuscula)
+                    || CONSTANTES_MATEMATICAS.contains(mayuscula)) {
+                continue;
+            }
+
+            if (esNombreDeFuncionEnExpresion(expresionSinLiterales, matcher.end())) {
                 continue;
             }
 
@@ -460,6 +528,10 @@ public class AnalizadorSemantico {
     }
 
     private String tipoDeIdentificador(String nombre, int numeroLinea) {
+        if (CONSTANTES_MATEMATICAS.contains(nombre.toUpperCase())) {
+            return "REAL";
+        }
+
         if (!tabla.existe(nombre)) {
             agregarError(numeroLinea, nombre,
                     "La variable '" + nombre + "' se está usando antes de ser declarada.");
@@ -485,43 +557,244 @@ public class AnalizadorSemantico {
         return "ENTERO".equals(tipo) || "REAL".equals(tipo);
     }
 
-    private boolean contieneOperadorAritmetico(String expresion) {
-        String sinLiterales = quitarLiterales(expresion);
-        return sinLiterales.matches(".*(\\+|\\-|\\*|/|%|\\^).*");
+    private Operacion encontrarOperadorLogicoPrincipal(String expresion) {
+        return encontrarOperadorPalabraPrincipal(expresion, new String[]{"&&", "||", " Y ", " O "});
     }
 
-    private boolean contieneOperadorRelacional(String expresion) {
-        String sinLiterales = quitarLiterales(expresion);
-        return sinLiterales.contains(">=")
-                || sinLiterales.contains("<=")
-                || sinLiterales.contains("==")
-                || sinLiterales.contains("!=")
-                || sinLiterales.contains(">")
-                || sinLiterales.contains("<");
+    private Operacion encontrarOperadorRelacionalPrincipal(String expresion) {
+        return encontrarOperadorPrincipal(expresion, new String[]{">=", "<=", "==", "!=", ">", "<"}, false);
     }
 
-    private boolean contieneOperadorLogico(String expresion) {
-        String sinLiterales = quitarLiterales(expresion);
-        return sinLiterales.matches(".*\\s(Y|O)\\s.*")
-                || sinLiterales.contains("&&")
-                || sinLiterales.contains("||");
+    private Operacion encontrarOperadorAritmeticoPrincipal(String expresion) {
+        Operacion sumaResta = encontrarOperadorPrincipal(expresion, new String[]{"+", "-"}, true);
+        if (sumaResta != null) {
+            return sumaResta;
+        }
+
+        Operacion multDiv = encontrarOperadorPrincipal(expresion, new String[]{"*", "/", "%"}, true);
+        if (multDiv != null) {
+            return multDiv;
+        }
+
+        return encontrarOperadorPrincipal(expresion, new String[]{"^"}, true);
     }
 
-    private String obtenerOperadorRelacional(String expresion) {
-        String[] operadores = {">=", "<=", "==", "!=", ">", "<"};
+    private Operacion encontrarOperadorPalabraPrincipal(String expresion, String[] operadores) {
+        int nivel = 0;
+        boolean dentroCadena = false;
+        boolean dentroCaracter = false;
 
-        for (String operador : operadores) {
-            if (expresion.contains(operador)) {
-                return operador;
+        for (int i = expresion.length() - 1; i >= 0; i--) {
+            char c = expresion.charAt(i);
+
+            if (c == '"' && !dentroCaracter) {
+                dentroCadena = !dentroCadena;
+            }
+
+            if (c == '\'' && !dentroCadena) {
+                dentroCaracter = !dentroCaracter;
+            }
+
+            if (dentroCadena || dentroCaracter) {
+                continue;
+            }
+
+            if (c == ')') {
+                nivel++;
+            } else if (c == '(') {
+                nivel--;
+            }
+
+            if (nivel != 0) {
+                continue;
+            }
+
+            for (String operador : operadores) {
+                int inicio = i - operador.length() + 1;
+                if (inicio >= 0 && expresion.substring(inicio, i + 1).equals(operador)) {
+                    return new Operacion(
+                            limpiarExpresion(expresion.substring(0, inicio)),
+                            operador.trim(),
+                            limpiarExpresion(expresion.substring(i + 1))
+                    );
+                }
             }
         }
 
         return null;
     }
 
-    private List<String> obtenerOperandosAritmeticos(String expresion) {
-        String normalizada = expresion.replace("**", "^");
-        return Arrays.asList(normalizada.split("\\+|\\-|\\*|/|%|\\^"));
+    private Operacion encontrarOperadorPrincipal(String expresion, String[] operadores, boolean evitarUnario) {
+        int nivel = 0;
+        boolean dentroCadena = false;
+        boolean dentroCaracter = false;
+
+        for (int i = expresion.length() - 1; i >= 0; i--) {
+            char c = expresion.charAt(i);
+
+            if (c == '"' && !dentroCaracter) {
+                dentroCadena = !dentroCadena;
+            }
+
+            if (c == '\'' && !dentroCadena) {
+                dentroCaracter = !dentroCaracter;
+            }
+
+            if (dentroCadena || dentroCaracter) {
+                continue;
+            }
+
+            if (c == ')') {
+                nivel++;
+            } else if (c == '(') {
+                nivel--;
+            }
+
+            if (nivel != 0) {
+                continue;
+            }
+
+            for (String operador : operadores) {
+                int inicio = i - operador.length() + 1;
+                if (inicio < 0) {
+                    continue;
+                }
+
+                if (!expresion.substring(inicio, i + 1).equals(operador)) {
+                    continue;
+                }
+
+                if (evitarUnario && (operador.equals("+") || operador.equals("-")) && esSignoUnario(expresion, inicio)) {
+                    continue;
+                }
+
+                String izquierda = limpiarExpresion(expresion.substring(0, inicio));
+                String derecha = limpiarExpresion(expresion.substring(i + 1));
+
+                if (izquierda.isEmpty() || derecha.isEmpty()) {
+                    continue;
+                }
+
+                return new Operacion(izquierda, operador, derecha);
+            }
+        }
+
+        return null;
+    }
+
+    private boolean esSignoUnario(String expresion, int posicion) {
+        if (posicion == 0) {
+            return true;
+        }
+
+        int anterior = posicion - 1;
+        while (anterior >= 0 && Character.isWhitespace(expresion.charAt(anterior))) {
+            anterior--;
+        }
+
+        if (anterior < 0) {
+            return true;
+        }
+
+        char c = expresion.charAt(anterior);
+        return c == '(' || c == ',' || c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '^'
+                || c == '=' || c == '<' || c == '>' || c == '!';
+    }
+
+    private LlamadaFuncion extraerLlamadaFuncion(String expresion) {
+        Matcher matcher = Pattern.compile("^([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\((.*)\\)$").matcher(expresion);
+
+        if (!matcher.matches()) {
+            return null;
+        }
+
+        if (!parentesisDeFuncionValidos(expresion, matcher.start(2) - 1)) {
+            return null;
+        }
+
+        String nombre = matcher.group(1);
+        String contenido = matcher.group(2);
+        return new LlamadaFuncion(nombre, separarArgumentos(contenido));
+    }
+
+    private boolean parentesisDeFuncionValidos(String expresion, int indiceParentesis) {
+        int nivel = 0;
+
+        for (int i = indiceParentesis; i < expresion.length(); i++) {
+            char c = expresion.charAt(i);
+
+            if (c == '(') {
+                nivel++;
+            } else if (c == ')') {
+                nivel--;
+            }
+
+            if (nivel == 0 && i < expresion.length() - 1) {
+                return false;
+            }
+        }
+
+        return nivel == 0;
+    }
+
+    private List<String> separarArgumentos(String contenido) {
+        List<String> argumentos = new ArrayList<>();
+
+        if (contenido == null || contenido.trim().isEmpty()) {
+            return argumentos;
+        }
+
+        int nivel = 0;
+        int inicio = 0;
+        boolean dentroCadena = false;
+        boolean dentroCaracter = false;
+
+        for (int i = 0; i < contenido.length(); i++) {
+            char c = contenido.charAt(i);
+
+            if (c == '"' && !dentroCaracter) {
+                dentroCadena = !dentroCadena;
+            }
+
+            if (c == '\'' && !dentroCadena) {
+                dentroCaracter = !dentroCaracter;
+            }
+
+            if (dentroCadena || dentroCaracter) {
+                continue;
+            }
+
+            if (c == '(') {
+                nivel++;
+            } else if (c == ')') {
+                nivel--;
+            } else if (c == ',' && nivel == 0) {
+                argumentos.add(limpiarExpresion(contenido.substring(inicio, i)));
+                inicio = i + 1;
+            }
+        }
+
+        argumentos.add(limpiarExpresion(contenido.substring(inicio)));
+        return argumentos;
+    }
+
+    private boolean esNombreDeFuncionEnExpresion(String expresion, int finIdentificador) {
+        int i = finIdentificador;
+
+        while (i < expresion.length() && Character.isWhitespace(expresion.charAt(i))) {
+            i++;
+        }
+
+        return i < expresion.length() && expresion.charAt(i) == '(';
+    }
+
+    private boolean esExpresionConstanteCero(String expresion) {
+        try {
+            Double valor = new EvaluadorConstante(expresion).parsear();
+            return valor != null && Math.abs(valor) < 0.0000000001;
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
     private String extraerContenidoFuncion(String linea, String funcion) {
@@ -565,9 +838,23 @@ public class AnalizadorSemantico {
 
     private boolean parentesisExternosValidos(String expresion) {
         int nivel = 0;
+        boolean dentroCadena = false;
+        boolean dentroCaracter = false;
 
         for (int i = 0; i < expresion.length(); i++) {
             char c = expresion.charAt(i);
+
+            if (c == '"' && !dentroCaracter) {
+                dentroCadena = !dentroCadena;
+            }
+
+            if (c == '\'' && !dentroCadena) {
+                dentroCaracter = !dentroCaracter;
+            }
+
+            if (dentroCadena || dentroCaracter) {
+                continue;
+            }
 
             if (c == '(') {
                 nivel++;
@@ -642,5 +929,229 @@ public class AnalizadorSemantico {
                 : "Se encontraron " + errores.size() + " error(es) semántico(s).";
 
         return new ResultadoSemantico(correcto, mensaje, errores, tabla.listar());
+    }
+
+    private static class Operacion {
+        private final String izquierda;
+        private final String operador;
+        private final String derecha;
+
+        private Operacion(String izquierda, String operador, String derecha) {
+            this.izquierda = izquierda;
+            this.operador = operador;
+            this.derecha = derecha;
+        }
+    }
+
+    private static class LlamadaFuncion {
+        private final String nombre;
+        private final List<String> argumentos;
+
+        private LlamadaFuncion(String nombre, List<String> argumentos) {
+            this.nombre = nombre;
+            this.argumentos = argumentos;
+        }
+    }
+
+    /**
+     * Evaluador simple para expresiones constantes.
+     * Se usa solo para detectar divisores como 0, (5 - 5), 2 * 0, etc.
+     * Si encuentra variables, lanza excepción y el semántico no reporta división entre cero.
+     */
+    private static class EvaluadorConstante {
+
+        private final String entrada;
+        private int pos = 0;
+
+        private EvaluadorConstante(String entrada) {
+            this.entrada = entrada == null ? "" : entrada.replace("**", "^");
+        }
+
+        private Double parsear() {
+            double valor = expresion();
+            saltarEspacios();
+
+            if (pos < entrada.length()) {
+                throw new IllegalArgumentException("Expresión no constante.");
+            }
+
+            return valor;
+        }
+
+        private double expresion() {
+            double valor = termino();
+
+            while (true) {
+                saltarEspacios();
+
+                if (coincide('+')) {
+                    valor += termino();
+                } else if (coincide('-')) {
+                    valor -= termino();
+                } else {
+                    return valor;
+                }
+            }
+        }
+
+        private double termino() {
+            double valor = potencia();
+
+            while (true) {
+                saltarEspacios();
+
+                if (coincide('*')) {
+                    valor *= potencia();
+                } else if (coincide('/')) {
+                    double divisor = potencia();
+                    if (Math.abs(divisor) < 0.0000000001) {
+                        throw new IllegalArgumentException("División entre cero en constante.");
+                    }
+                    valor /= divisor;
+                } else if (coincide('%')) {
+                    double divisor = potencia();
+                    if (Math.abs(divisor) < 0.0000000001) {
+                        throw new IllegalArgumentException("Módulo entre cero en constante.");
+                    }
+                    valor %= divisor;
+                } else {
+                    return valor;
+                }
+            }
+        }
+
+        private double potencia() {
+            double valor = factor();
+            saltarEspacios();
+
+            if (coincide('^')) {
+                valor = Math.pow(valor, potencia());
+            }
+
+            return valor;
+        }
+
+        private double factor() {
+            saltarEspacios();
+
+            if (coincide('+')) {
+                return factor();
+            }
+
+            if (coincide('-')) {
+                return -factor();
+            }
+
+            if (coincide('(')) {
+                double valor = expresion();
+                if (!coincide(')')) {
+                    throw new IllegalArgumentException("Paréntesis no cerrado.");
+                }
+                return valor;
+            }
+
+            if (pos < entrada.length() && (Character.isLetter(entrada.charAt(pos)) || entrada.charAt(pos) == '_')) {
+                String nombre = leerIdentificador().toUpperCase(Locale.ROOT);
+                saltarEspacios();
+
+                if (nombre.equals("PI")) {
+                    return Math.PI;
+                }
+
+                if (nombre.equals("E")) {
+                    return Math.E;
+                }
+
+                if (!coincide('(')) {
+                    throw new IllegalArgumentException("Variable no constante.");
+                }
+
+                double argumento = expresion();
+
+                if (!coincide(')')) {
+                    throw new IllegalArgumentException("Función no cerrada.");
+                }
+
+                switch (nombre) {
+                    case "SIN":
+                    case "SEN":
+                        return Math.sin(argumento);
+                    case "COS":
+                        return Math.cos(argumento);
+                    case "TAN":
+                        return Math.tan(argumento);
+                    case "SQRT":
+                    case "RAIZ":
+                        return Math.sqrt(argumento);
+                    case "ABS":
+                    case "ABSOLUTO":
+                        return Math.abs(argumento);
+                    case "LOG":
+                        return Math.log10(argumento);
+                    case "LN":
+                        return Math.log(argumento);
+                    case "EXP":
+                        return Math.exp(argumento);
+                    default:
+                        throw new IllegalArgumentException("Función no constante.");
+                }
+            }
+
+            return leerNumero();
+        }
+
+        private double leerNumero() {
+            saltarEspacios();
+
+            int inicio = pos;
+            boolean punto = false;
+
+            while (pos < entrada.length()) {
+                char c = entrada.charAt(pos);
+
+                if (Character.isDigit(c)) {
+                    pos++;
+                } else if (c == '.' && !punto) {
+                    punto = true;
+                    pos++;
+                } else {
+                    break;
+                }
+            }
+
+            if (inicio == pos) {
+                throw new IllegalArgumentException("Número esperado.");
+            }
+
+            return Double.parseDouble(entrada.substring(inicio, pos));
+        }
+
+        private String leerIdentificador() {
+            int inicio = pos;
+
+            while (pos < entrada.length()
+                    && (Character.isLetterOrDigit(entrada.charAt(pos)) || entrada.charAt(pos) == '_')) {
+                pos++;
+            }
+
+            return entrada.substring(inicio, pos);
+        }
+
+        private boolean coincide(char esperado) {
+            saltarEspacios();
+
+            if (pos < entrada.length() && entrada.charAt(pos) == esperado) {
+                pos++;
+                return true;
+            }
+
+            return false;
+        }
+
+        private void saltarEspacios() {
+            while (pos < entrada.length() && Character.isWhitespace(entrada.charAt(pos))) {
+                pos++;
+            }
+        }
     }
 }

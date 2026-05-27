@@ -1,22 +1,20 @@
 /*
  * parser.cup
- * Gramática Turbo X con acción JCUP para módulo de gráficas.
+ * Turbo X - Gramática JCUP mejorada.
  *
- * Mejora aplicada:
- * - La regla GRAFICAR ahora ejecuta código de acción dentro de JCUP.
- * - Cuando se reconoce:
- *      GRAFICAR f(x) = x ^ 2 + 3;
- *   el parser guarda:
- *      funcionGrafica = f
- *      variableGrafica = x
- *      expresionGrafica = x ^ 2 + 3
- *      urlGrafica = URL de Desmos
+ * Mejoras incluidas:
+ * 1. GRAFICAR genera URL local para desmos.html usando acción dentro de JCUP.
+ * 2. La expresión de GRAFICAR acepta ecuaciones con operadores y funciones:
+ *    sin(x), cos(x), tan(x), sqrt(x), abs(x), log(x), ln(x), exp(x), etc.
+ * 3. La expresión se reconstruye como String para enviarla a Desmos.
+ * 4. Se mantienen SI con SINO y SI sin SINO.
  */
 
 package com.company.api_compilador;
 
 import java_cup.runtime.Symbol;
 import java.net.URLEncoder;
+import java.util.regex.Pattern;
 
 parser code {:
     public StringBuilder reporte = new StringBuilder();
@@ -29,11 +27,21 @@ parser code {:
 
     @Override
     public void syntax_error(Symbol s) {
-        String valor = (s.value == null) ? "sin valor" : s.value.toString();
+        String valor = (s == null || s.value == null) ? "sin valor" : s.value.toString();
 
-        String mensaje = "Error sintáctico en línea " + s.left
-                + ", columna " + s.right
-                + ". Símbolo recibido: " + valor;
+        int linea = 1;
+        int columna = 1;
+
+        if (s != null) {
+            linea = Math.max(1, s.left);
+            columna = Math.max(1, s.right);
+        }
+
+        String mensaje = "Error sintáctico cerca de la línea " + linea
+                + ", columna " + columna
+                + ". Símbolo recibido: '" + valor + "'.";
+
+        mensaje += " Revisa si falta ';', ')', '}', ':' o alguna palabra reservada de la estructura.";
 
         System.err.println(mensaje);
         reporte.append(mensaje).append("\\n");
@@ -41,8 +49,21 @@ parser code {:
 
     @Override
     public void unrecovered_syntax_error(Symbol s) throws Exception {
-        String mensaje = "Error sintáctico no recuperable en línea " + s.left
-                + ", columna " + s.right + ".";
+        String valor = (s == null || s.value == null) ? "sin valor" : s.value.toString();
+
+        int linea = 1;
+        int columna = 1;
+
+        if (s != null) {
+            linea = Math.max(1, s.left);
+            columna = Math.max(1, s.right);
+        }
+
+        String mensaje = "Error sintáctico no recuperable cerca de la línea " + linea
+                + ", columna " + columna
+                + ". Símbolo recibido: '" + valor + "'.";
+
+        mensaje += " El parser no pudo continuar. Revisa especialmente la línea indicada y la línea anterior.";
 
         System.err.println(mensaje);
         reporte.append(mensaje).append("\\n");
@@ -57,38 +78,42 @@ parser code {:
         this.urlGrafica = generarUrlDesmos(variable, expresion);
     }
 
-private String generarUrlDesmos(String variable, String expresion) {
-    try {
-        String expresionNormalizada = expresion
+    private String generarUrlDesmos(String variable, String expresion) {
+        try {
+            String expresionNormalizada = normalizarExpresionDesmos(expresion);
+
+            if (!"x".equalsIgnoreCase(variable)) {
+                expresionNormalizada = expresionNormalizada.replaceAll(
+                        "\\b" + Pattern.quote(variable) + "\\b",
+                        "x"
+                );
+            }
+
+            String ecuacion = "y=" + expresionNormalizada;
+            String encoded = URLEncoder.encode(ecuacion, "UTF-8");
+
+            return "/desmos.html?expr=" + encoded;
+
+        } catch (Exception ex) {
+            return "/desmos.html";
+        }
+    }
+
+    private String normalizarExpresionDesmos(String expresion) {
+        String expr = expresion
                 .replace("**", "^")
                 .replaceAll("\\s+", "");
 
-        if (!"x".equalsIgnoreCase(variable)) {
-            expresionNormalizada = expresionNormalizada.replace(variable, "x");
-        }
-
         /*
-         * Antes se generaba:
-         * https://www.desmos.com/calculator?expression=...
-         *
-         * Ese formato abre Desmos, pero Desmos no carga automáticamente la
-         * expresión desde ese parámetro.
-         *
-         * Ahora se devuelve una URL local que abre desmos.html.
-         * Ese HTML sí utiliza la API oficial de Desmos y llama:
-         *
-         * calculadora.setExpression({ latex: expresion });
+         * Alias útiles para que el lenguaje acepte notación en español.
+         * Desmos entiende sin, cos, tan, sqrt, abs, log, ln y exp.
          */
-        String ecuacion = "y=" + expresionNormalizada;
-        String encoded = URLEncoder.encode(ecuacion, "UTF-8");
+        expr = expr.replaceAll("(?i)\\bsen\\s*\\(", "sin(");
+        expr = expr.replaceAll("(?i)\\braiz\\s*\\(", "sqrt(");
+        expr = expr.replaceAll("(?i)\\babsoluto\\s*\\(", "abs(");
 
-        return "/desmos.html?expr=" + encoded;
-
-    } catch (Exception ex) {
-        return "/desmos.html";
+        return expr;
     }
-}
-
 :};
 
 /* =========================
@@ -188,6 +213,7 @@ non terminal bloque;
 
 non terminal tipo;
 non terminal String expr;
+non terminal String argumentos;
 non terminal valor_caso;
 
 /* =========================
@@ -329,7 +355,7 @@ valor_caso ::=
 
 /* =========================
    GRÁFICAS
-   Aquí está el código de acción solicitado por la guía.
+   Código de acción dentro de JCUP.
    ========================= */
 
 graficar ::=
@@ -340,8 +366,8 @@ graficar ::=
     ;
 
 /* =========================
-   EXPRESIONES GENERALES
-   Ahora expr devuelve un String para que JCUP pueda reconstruir la función.
+   EXPRESIONES
+   expr devuelve String para reconstruir ecuaciones.
    ========================= */
 
 expr ::=
@@ -413,6 +439,12 @@ expr ::=
           RESULT = "(" + a + ")";
       :}
 
+    /* Funciones matemáticas o llamadas tipo sin(x), sqrt(x), max(x, 2). */
+    | IDENTIFICADOR:fn PARENT_ABRE argumentos:args PARENT_CIERRA
+      {:
+          RESULT = fn + "(" + args + ")";
+      :}
+
     | NUMERO_ENTERO:n
       {:
           RESULT = n;
@@ -440,5 +472,16 @@ expr ::=
     | IDENTIFICADOR:id
       {:
           RESULT = id;
+      :}
+    ;
+
+argumentos ::=
+      expr:e
+      {:
+          RESULT = e;
+      :}
+    | argumentos:a COMA expr:e
+      {:
+          RESULT = a + ", " + e;
       :}
     ;

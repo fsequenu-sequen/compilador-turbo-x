@@ -71,10 +71,23 @@
 
                 <div class="topbar-actions">
                     <input type="file" id="archivoTxt" accept=".txt" hidden>
-                    <button class="btn secondary" id="btnArchivo">Cargar .txt</button>
-                    <button class="btn ghost" id="btnEjemplo">Ejemplo</button>
+                    <button class="btn secondary" id="btnArchivo" type="button">Cargar .txt</button>
+
+                    <select id="selectorEjemplos" class="select-example" title="Seleccionar ejemplo de prueba">
+                        <option value="correcto">Ejemplo correcto</option>
+                        <option value="lexico">Error léxico</option>
+                        <option value="sintactico">Error sintáctico</option>
+                        <option value="semantico">Error semántico</option>
+                        <option value="grafica">Gráfica cuadrática</option>
+                        <option value="trigonometrica">Gráfica trigonométrica</option>
+                        <option value="divisionCero">División entre cero</option>
+                    </select>
+
+                    <button class="btn ghost" id="btnEjemplo" type="button">Cargar ejemplo</button>
                     <button class="btn ghost theme-toggle" id="btnTema" type="button">🌙 Oscuro</button>
-                    <button class="btn primary" id="btnCompilar">Compilar código</button>
+                    <button class="btn ghost" id="btnLimpiarResultados" type="button">Limpiar resultados</button>
+                    <button class="btn secondary" id="btnDescargarReporte" type="button">Descargar reporte</button>
+                    <button class="btn primary" id="btnCompilar" type="button">Compilar código</button>
                 </div>
             </header>
 
@@ -132,7 +145,17 @@
 
                     <div class="code-wrapper">
                         <div id="lineNumbers" class="line-numbers">1</div>
-                        <textarea id="codigo" spellcheck="false" placeholder="Escribe aquí tu código Turbo X..."></textarea>
+
+                        <div class="highlight-editor">
+                            <div id="errorLineLayer" class="error-line-layer" aria-hidden="true"></div>
+                            <pre id="highlightLayer" class="highlight-layer" aria-hidden="true"></pre>
+                            <textarea id="codigo" class="code-input" spellcheck="false" placeholder="Escribe aquí tu código Turbo X..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="editor-statusbar">
+                        <span id="editorStats">Líneas: 1 | Caracteres: 0</span>
+                        <span id="autosaveStatus">Autoguardado activo</span>
                     </div>
                 </div>
             </section>
@@ -249,7 +272,19 @@
                         <button class="btn secondary full-width" id="btnAbrirGrafica" disabled>Abrir gráfica</button>
                     </article>
                 </div>
-            </section>
+            
+                <div id="graficaCanvasWrapper" class="graph-card canvas-visible-card">
+                    <div class="graph-card-header">
+                        <div>
+                            <h3>Vista de la gráfica</h3>
+                            <p>Representación interna en Canvas como vista previa adicional.</p>
+                        </div>
+                    </div>
+
+                    <canvas id="graficaCanvas"></canvas>
+                    <p id="graficaAyuda">Gráfica pendiente. Compila un programa con GRAFICAR para visualizarla.</p>
+                </div>
+</section>
 
             <!-- Consola inferior -->
             <section class="console-panel">

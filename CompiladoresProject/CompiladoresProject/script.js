@@ -20,12 +20,17 @@ const lineNumbers = document.getElementById("lineNumbers");
 const archivoTxt = document.getElementById("archivoTxt");
 const btnArchivo = document.getElementById("btnArchivo");
 const btnEjemplo = document.getElementById("btnEjemplo");
+const selectorEjemplos = document.getElementById("selectorEjemplos");
+const btnLimpiarResultados = document.getElementById("btnLimpiarResultados");
+const btnDescargarReporte = document.getElementById("btnDescargarReporte");
 const btnTema = document.getElementById("btnTema");
 const btnCompilar = document.getElementById("btnCompilar");
 const btnLimpiar = document.getElementById("btnLimpiar");
 const btnCopiar = document.getElementById("btnCopiar");
 const btnLimpiarConsola = document.getElementById("btnLimpiarConsola");
 const fileName = document.getElementById("fileName");
+const highlightLayer = document.getElementById("highlightLayer");
+const errorLineLayer = document.getElementById("errorLineLayer");
 
 const tablaTokens = document.getElementById("tablaTokens");
 const tablaSimbolos = document.getElementById("tablaSimbolos");
@@ -45,8 +50,24 @@ const urlGrafica = document.getElementById("urlGrafica");
 const btnAbrirGrafica = document.getElementById("btnAbrirGrafica");
 
 const serverStatus = document.getElementById("serverStatus");
+const editorStats = document.getElementById("editorStats");
+const autosaveStatus = document.getElementById("autosaveStatus");
 
 let ultimaUrlGrafica = "";
+let ultimoReporteCompilacion = {
+    fecha: "",
+    codigo: "",
+    tokens: [],
+    resultadoSintactico: null,
+    resultadoSemantico: null,
+    resultadoGrafica: null,
+    estadoFinal: "Pendiente"
+};
+
+let autosaveTimer = null;
+let validacionEnVivoTimer = null;
+let lineasConError = new Set();
+let lineasConAdvertencia = new Set();
 
 /* =========================================================
    NAVEGACIÓN ENTRE PANELES
@@ -70,7 +91,7 @@ document.querySelectorAll(".menu-item").forEach((button) => {
 
 
 /* =========================================================
-   CAMBIO DE TEMA CLARO / OSCURO
+   TEMA CLARO / OSCURO
    ========================================================= */
 
 function inicializarTema() {
@@ -90,7 +111,7 @@ function aplicarTema(tema, registrarLog = true) {
 
     localStorage.setItem("turbox_tema", tema);
 
-    if (registrarLog && typeof log === "function") {
+    if (registrarLog && consola) {
         log("Tema cambiado a modo " + tema + ".");
     }
 }
@@ -105,24 +126,528 @@ if (btnTema) {
 }
 
 /* =========================================================
+   RESALTADO DE SINTAXIS TURBO X
+   El resaltado es visual. No altera el análisis del backend.
+   ========================================================= */
+
+function aplicarResaltadoTurboX() {
+    if (!highlightLayer || !codigo) {
+        return;
+    }
+
+    const texto = codigo.value;
+    const html = resaltarCodigoTurboX(texto);
+
+    /*
+       Si el texto termina con salto de línea, se agrega un espacio invisible
+       para que el editor visual mantenga la última línea vacía.
+    */
+    highlightLayer.innerHTML = html + (texto.endsWith("\n") ? " " : "");
+    sincronizarScrollEditor();
+}
+
+function resaltarCodigoTurboX(texto) {
+    let resultado = "";
+    let i = 0;
+
+    const palabrasReservadas = new Set([
+        "PROGRAMA", "INICIO", "FIN",
+        "SI", "ENTONCES", "SINO",
+        "MIENTRAS", "HACER",
+        "EVALUAR", "CASO", "OTRO", "PARAR",
+        "IMPRIMIR", "LEER", "GRAFICAR"
+    ]);
+
+    const tiposDato = new Set([
+        "ENTERO", "REAL", "CADENA", "CARACTER", "LOGICO"
+    ]);
+
+    const valoresLogicos = new Set([
+        "VERDADERO", "FALSO"
+    ]);
+
+    const funcionesMatematicas = new Set([
+        "sin", "cos", "tan", "sqrt", "abs", "log", "ln", "exp",
+        "SIN", "COS", "TAN", "SQRT", "ABS", "LOG", "LN", "EXP"
+    ]);
+
+    while (i < texto.length) {
+        const actual = texto[i];
+        const siguiente = texto[i + 1] || "";
+
+        // Comentario de línea
+        if (actual === "/" && siguiente === "/") {
+            let j = i;
+
+            while (j < texto.length && texto[j] !== "\n") {
+                j++;
+            }
+
+            resultado += envolverToken(texto.slice(i, j), "comment");
+            i = j;
+            continue;
+        }
+
+        // Comentario de bloque
+        if (actual === "/" && siguiente === "*") {
+            let j = i + 2;
+
+            while (j < texto.length - 1 && !(texto[j] === "*" && texto[j + 1] === "/")) {
+                j++;
+            }
+
+            j = Math.min(j + 2, texto.length);
+            resultado += envolverToken(texto.slice(i, j), "comment");
+            i = j;
+            continue;
+        }
+
+        // Cadenas
+        if (actual === '"') {
+            let j = i + 1;
+            let escapado = false;
+
+            while (j < texto.length) {
+                const c = texto[j];
+
+                if (c === '"' && !escapado) {
+                    j++;
+                    break;
+                }
+
+                escapado = c === "\\" && !escapado;
+                if (c !== "\\") {
+                    escapado = false;
+                }
+
+                j++;
+            }
+
+            resultado += envolverToken(texto.slice(i, j), "string");
+            i = j;
+            continue;
+        }
+
+        // Caracteres
+        if (actual === "'") {
+            let j = i + 1;
+            let escapado = false;
+
+            while (j < texto.length) {
+                const c = texto[j];
+
+                if (c === "'" && !escapado) {
+                    j++;
+                    break;
+                }
+
+                escapado = c === "\\" && !escapado;
+                if (c !== "\\") {
+                    escapado = false;
+                }
+
+                j++;
+            }
+
+            resultado += envolverToken(texto.slice(i, j), "char");
+            i = j;
+            continue;
+        }
+
+        // Números enteros y reales
+        if (/[0-9]/.test(actual)) {
+            let j = i;
+
+            while (j < texto.length && /[0-9.]/.test(texto[j])) {
+                j++;
+            }
+
+            resultado += envolverToken(texto.slice(i, j), "number");
+            i = j;
+            continue;
+        }
+
+        // Identificadores, palabras reservadas, tipos y funciones matemáticas
+        if (/[A-Za-z_]/.test(actual)) {
+            let j = i;
+
+            while (j < texto.length && /[A-Za-z0-9_]/.test(texto[j])) {
+                j++;
+            }
+
+            const palabra = texto.slice(i, j);
+            const mayuscula = palabra.toUpperCase();
+
+            if (palabrasReservadas.has(mayuscula)) {
+                resultado += envolverToken(palabra, "keyword");
+            } else if (tiposDato.has(mayuscula)) {
+                resultado += envolverToken(palabra, "type");
+            } else if (valoresLogicos.has(mayuscula)) {
+                resultado += envolverToken(palabra, "boolean");
+            } else if (funcionesMatematicas.has(palabra) || funcionesMatematicas.has(mayuscula)) {
+                resultado += envolverToken(palabra, "function");
+            } else {
+                resultado += envolverToken(palabra, "identifier");
+            }
+
+            i = j;
+            continue;
+        }
+
+        // Operadores y símbolos
+        if (/[+\-*/%^=<>!&|(){}\[\],;:.]/.test(actual)) {
+            const dos = texto.slice(i, i + 2);
+
+            if ([">=", "<=", "==", "!=", "&&", "||", "**"].includes(dos)) {
+                resultado += envolverToken(dos, "operator");
+                i += 2;
+            } else {
+                resultado += envolverToken(actual, "operator");
+                i++;
+            }
+
+            continue;
+        }
+
+        resultado += escapeHtml(actual);
+        i++;
+    }
+
+    return resultado;
+}
+
+function envolverToken(valor, clase) {
+    return `<span class="syntax-${clase}">${escapeHtml(valor)}</span>`;
+}
+
+
+
+/* =========================================================
+   MARCADO DE LÍNEAS CON ERROR Y VALIDACIÓN EN VIVO
+   ========================================================= */
+
+function marcarLineasConError(lineas) {
+    lineasConError = new Set(
+        (lineas || [])
+            .map((linea) => Number(linea))
+            .filter((linea) => Number.isInteger(linea) && linea > 0)
+            .map((linea) => ajustarLineaErrorVisual(linea))
+    );
+
+    lineasConAdvertencia.clear();
+    actualizarLineas();
+}
+
+function limpiarMarcasErroresVisuales() {
+    lineasConError.clear();
+    lineasConAdvertencia.clear();
+    actualizarLineas();
+}
+
+function ajustarLineaErrorVisual(linea) {
+    const lineas = codigo.value.split("\n");
+
+    if (linea > 1 && linea <= lineas.length && lineas[linea - 1].trim() === "") {
+        return linea - 1;
+    }
+
+    return linea;
+}
+
+function extraerLineasErroresLexicos(tokens) {
+    return (tokens || [])
+        .filter((token) => esErrorToken(token.tipo))
+        .map((token) => token.linea);
+}
+
+function extraerLineasErroresSintacticos(resultado) {
+    const errores = resultado && resultado.errores ? resultado.errores : [];
+    const lineas = [];
+
+    errores.forEach((error) => {
+        const texto = String(error);
+        const match = texto.match(/l[ií]nea\s+(\d+)/i);
+
+        if (match) {
+            lineas.push(Number(match[1]));
+        }
+    });
+
+    return lineas;
+}
+
+function extraerLineasErroresSemanticos(resultado) {
+    const errores = resultado && resultado.errores ? resultado.errores : [];
+
+    return errores
+        .map((error) => Number(error.linea))
+        .filter((linea) => Number.isInteger(linea) && linea > 0);
+}
+
+function renderMarcasLineas() {
+    if (!errorLineLayer || !codigo) {
+        return;
+    }
+
+    const style = window.getComputedStyle(codigo);
+    let lineHeight = parseFloat(style.lineHeight);
+    let paddingTop = parseFloat(style.paddingTop);
+
+    if (!Number.isFinite(lineHeight)) {
+        lineHeight = 23.25;
+    }
+
+    if (!Number.isFinite(paddingTop)) {
+        paddingTop = 16;
+    }
+
+    const scrollTop = codigo.scrollTop;
+    const fragmentos = [];
+
+    lineasConAdvertencia.forEach((linea) => {
+        if (!lineasConError.has(linea)) {
+            const top = paddingTop + ((linea - 1) * lineHeight) - scrollTop;
+            fragmentos.push(`<div class="live-warning-line" style="top:${top}px;height:${lineHeight}px;"></div>`);
+        }
+    });
+
+    lineasConError.forEach((linea) => {
+        const top = paddingTop + ((linea - 1) * lineHeight) - scrollTop;
+        fragmentos.push(`<div class="compile-error-line" style="top:${top}px;height:${lineHeight}px;"></div>`);
+    });
+
+    errorLineLayer.innerHTML = fragmentos.join("");
+}
+
+function programarValidacionEnVivo() {
+    if (validacionEnVivoTimer) {
+        clearTimeout(validacionEnVivoTimer);
+    }
+
+    validacionEnVivoTimer = setTimeout(() => {
+        validarCodigoEnVivo();
+    }, 450);
+}
+
+function validarCodigoEnVivo() {
+    if (!codigo || lineasConError.size > 0) {
+        return;
+    }
+
+    const lineas = codigo.value.split("\n");
+    const advertencias = [];
+
+    lineas.forEach((lineaOriginal, index) => {
+        const numeroLinea = index + 1;
+        const lineaSinComentario = quitarComentarioLineaCliente(lineaOriginal);
+        const linea = lineaSinComentario.trim();
+
+        if (!linea) {
+            return;
+        }
+
+        if (debeIgnorarseEnValidacionEnVivo(linea)) {
+            return;
+        }
+
+        if (tieneComillasDoblesImpares(lineaSinComentario)) {
+            advertencias.push({
+                linea: numeroLinea,
+                mensaje: "Posible cadena sin cerrar."
+            });
+        }
+
+        if (tieneComillasSimplesImpares(lineaSinComentario)) {
+            advertencias.push({
+                linea: numeroLinea,
+                mensaje: "Posible carácter sin cerrar."
+            });
+        }
+
+        if (posibleFaltaPuntoComa(linea)) {
+            advertencias.push({
+                linea: numeroLinea,
+                mensaje: "Posible falta de punto y coma ';'."
+            });
+        }
+
+        if (/(\/|%)\s*0+(\.0+)?\b/.test(linea)) {
+            advertencias.push({
+                linea: numeroLinea,
+                mensaje: "Posible división o módulo entre cero."
+            });
+        }
+    });
+
+    lineasConAdvertencia = new Set(advertencias.map((a) => a.linea));
+    actualizarLineas();
+
+    if (autosaveStatus) {
+        if (advertencias.length > 0) {
+            autosaveStatus.textContent = "Advertencias en vivo: " + advertencias.length;
+        } else {
+            autosaveStatus.textContent = "Sin advertencias en vivo";
+        }
+    }
+}
+
+function debeIgnorarseEnValidacionEnVivo(linea) {
+    if (linea === "INICIO" || linea === "FIN") {
+        return true;
+    }
+
+    if (linea === "{" || linea === "}" || linea === "} SINO {" || linea === "SINO") {
+        return true;
+    }
+
+    if (linea.startsWith("PROGRAMA ")) {
+        return true;
+    }
+
+    if (linea.endsWith("{") || linea.endsWith("}") || linea.endsWith(":")) {
+        return true;
+    }
+
+    if (linea.startsWith("//") || linea.startsWith("/*") || linea.endsWith("*/")) {
+        return true;
+    }
+
+    return false;
+}
+
+function posibleFaltaPuntoComa(linea) {
+    if (linea.endsWith(";")) {
+        return false;
+    }
+
+    // No marcar líneas claramente estructurales.
+    if (linea.endsWith("{") || linea.endsWith("}") || linea.endsWith(":")) {
+        return false;
+    }
+
+    const patronesQueRequierenPuntoComa = [
+        /^(ENTERO|REAL|CADENA|CARACTER|LOGICO)\s+[A-Za-z_][A-Za-z0-9_]*(\s*=.+)?$/i,
+        /^[A-Za-z_][A-Za-z0-9_]*\s*=.+$/,
+        /^IMPRIMIR\s*\(.+\)$/i,
+        /^LEER\s*\(.+\)$/i,
+        /^PARAR$/i,
+        /^GRAFICAR\s+.+$/i
+    ];
+
+    return patronesQueRequierenPuntoComa.some((patron) => patron.test(linea));
+}
+
+function quitarComentarioLineaCliente(linea) {
+    let dentroCadena = false;
+    let dentroCaracter = false;
+
+    for (let i = 0; i < linea.length - 1; i++) {
+        const actual = linea[i];
+
+        if (actual === '"' && !dentroCaracter) {
+            dentroCadena = !dentroCadena;
+        }
+
+        if (actual === "'" && !dentroCadena) {
+            dentroCaracter = !dentroCaracter;
+        }
+
+        if (!dentroCadena && !dentroCaracter && actual === "/" && linea[i + 1] === "/") {
+            return linea.substring(0, i);
+        }
+    }
+
+    return linea;
+}
+
+function tieneComillasDoblesImpares(linea) {
+    const sinEscapadas = linea.replace(/\\"/g, "");
+    const cantidad = (sinEscapadas.match(/"/g) || []).length;
+    return cantidad % 2 !== 0;
+}
+
+function tieneComillasSimplesImpares(linea) {
+    const sinEscapadas = linea.replace(/\\'/g, "");
+    const cantidad = (sinEscapadas.match(/'/g) || []).length;
+    return cantidad % 2 !== 0;
+}
+
+
+/* =========================================================
    EDITOR Y ARCHIVOS
    ========================================================= */
 
+
+function sincronizarScrollEditor() {
+    if (!codigo) {
+        return;
+    }
+
+    const scrollTop = codigo.scrollTop;
+    const scrollLeft = codigo.scrollLeft;
+
+    /*
+       Los números de línea deben usar scrollTop, no transform.
+       Así se mantienen todos los números disponibles y se mueven junto al textarea.
+    */
+    if (lineNumbers) {
+        lineNumbers.scrollTop = scrollTop;
+        lineNumbers.style.transform = "none";
+    }
+
+    /*
+       La capa de resaltado sí se desplaza con transform porque no es editable.
+       Su altura queda automática para que no corte el resto del código.
+    */
+    if (highlightLayer) {
+        highlightLayer.style.transform = `translate(${-scrollLeft}px, ${-scrollTop}px)`;
+    }
+}
+
+
 function actualizarLineas() {
-    const totalLineas = codigo.value.split("\n").length || 1;
+    const texto = codigo.value;
+    const totalLineas = texto.length === 0 ? 1 : texto.split("\n").length;
     let lineas = "";
 
     for (let i = 1; i <= totalLineas; i++) {
-        lineas += i + "<br>";
+        let clase = "";
+
+        if (lineasConError.has(i)) {
+            clase = "line-number-error";
+        } else if (lineasConAdvertencia.has(i)) {
+            clase = "line-number-warning";
+        }
+
+        /*
+           Se genera un span por cada línea, incluso si la línea está vacía.
+           Esto mantiene la numeración igual al contenido real del textarea.
+        */
+        lineas += `<span class="${clase}">${i}</span>`;
     }
 
     lineNumbers.innerHTML = lineas;
+    aplicarResaltadoTurboX();
+    sincronizarScrollEditor();
+    renderMarcasLineas();
+    actualizarEstadisticasEditor();
+    programarAutoguardado();
 }
 
-codigo.addEventListener("input", actualizarLineas);
+codigo.addEventListener("input", () => {
+    /*
+       Si el usuario edita el código, las marcas de compilaciones anteriores
+       ya no son confiables. Se limpian y luego se ejecuta la validación ligera.
+    */
+    lineasConError.clear();
+    lineasConAdvertencia.clear();
+    actualizarLineas();
+    programarValidacionEnVivo();
+});
 
 codigo.addEventListener("scroll", () => {
-    lineNumbers.scrollTop = codigo.scrollTop;
+    sincronizarScrollEditor();
+    renderMarcasLineas();
 });
 
 btnArchivo.addEventListener("click", () => archivoTxt.click());
@@ -147,17 +672,20 @@ archivoTxt.addEventListener("change", (event) => {
 });
 
 btnEjemplo.addEventListener("click", () => {
-    codigo.value = ejemploTurboX();
-    fileName.textContent = "ejemplo_turbox.tx";
+    const tipoEjemplo = selectorEjemplos ? selectorEjemplos.value : "correcto";
+    codigo.value = obtenerEjemploTurboX(tipoEjemplo);
+    fileName.textContent = "ejemplo_" + tipoEjemplo + ".tx";
     actualizarLineas();
     limpiarResultados();
-    log("Código de ejemplo cargado.");
+    guardarCodigoLocal();
+    log("Ejemplo cargado: " + obtenerNombreEjemplo(tipoEjemplo) + ".");
 });
 
 btnLimpiar.addEventListener("click", () => {
     codigo.value = "";
     actualizarLineas();
     limpiarResultados();
+    guardarCodigoLocal();
     log("Editor limpiado.");
 });
 
@@ -175,6 +703,20 @@ btnLimpiarConsola.addEventListener("click", () => {
     log("Consola limpia.");
 });
 
+
+if (btnLimpiarResultados) {
+    btnLimpiarResultados.addEventListener("click", () => {
+        limpiarResultados(false);
+        log("Resultados limpiados. El código del editor se conserva.");
+    });
+}
+
+if (btnDescargarReporte) {
+    btnDescargarReporte.addEventListener("click", () => {
+        descargarReporteCompilacion();
+    });
+}
+
 /* =========================================================
    COMPILACIÓN REAL POR FASES
    ========================================================= */
@@ -182,12 +724,17 @@ btnLimpiarConsola.addEventListener("click", () => {
 btnCompilar.addEventListener("click", async () => {
     const fuente = codigo.value.trim();
 
+    ultimoReporteCompilacion = crearReporteBase(fuente);
+
     if (!fuente) {
         log("No hay código para compilar.", "Advertencia");
         return;
     }
 
     limpiarResultados(false);
+    lineasConError.clear();
+    lineasConAdvertencia.clear();
+    actualizarLineas();
 
     btnCompilar.disabled = true;
     btnCompilar.textContent = "Compilando...";
@@ -201,12 +748,15 @@ btnCompilar.addEventListener("click", async () => {
         log("Ejecutando análisis léxico...");
         const tokens = await analizarLexico(fuente);
 
+        ultimoReporteCompilacion.tokens = tokens || [];
+
         renderTokens(tokens);
         renderResumenLexico(tokens);
 
         const totalErroresLexicos = contarErroresLexicos(tokens);
 
         if (totalErroresLexicos > 0) {
+            marcarLineasConError(extraerLineasErroresLexicos(tokens));
             renderSintacticoNoEjecutado("No se ejecutó el análisis sintáctico porque existen errores léxicos.");
             renderSemanticoNoEjecutado("No se ejecutó el análisis semántico porque existen errores léxicos.");
             renderGraficaNoEjecutada("No se generó gráfica porque existen errores léxicos.");
@@ -214,6 +764,7 @@ btnCompilar.addEventListener("click", async () => {
             serverStatus.textContent = "Conectado";
             log("Análisis léxico finalizado con " + totalErroresLexicos + " error(es).", "Error");
             log("Compilación detenida en la fase léxica.", "Sistema");
+            ultimoReporteCompilacion.estadoFinal = "Compilación detenida por errores léxicos.";
             return;
         }
 
@@ -223,15 +774,19 @@ btnCompilar.addEventListener("click", async () => {
         log("Ejecutando análisis sintáctico con JCUP...");
         const resultadoSintactico = await analizarSintactico(fuente);
 
+        ultimoReporteCompilacion.resultadoSintactico = resultadoSintactico;
+
         renderSintactico(resultadoSintactico);
 
         if (!resultadoSintactico || !resultadoSintactico.correcto) {
+            marcarLineasConError(extraerLineasErroresSintacticos(resultadoSintactico));
             renderSemanticoNoEjecutado("No se ejecutó el análisis semántico porque existen errores sintácticos.");
             renderGraficaNoEjecutada("No se generó gráfica porque existen errores sintácticos.");
 
             serverStatus.textContent = "Conectado";
             log("Análisis sintáctico finalizado con errores.", "Error");
             log("Compilación detenida en la fase sintáctica.", "Sistema");
+            ultimoReporteCompilacion.estadoFinal = "Compilación detenida por errores sintácticos.";
             return;
         }
 
@@ -241,9 +796,12 @@ btnCompilar.addEventListener("click", async () => {
         log("Ejecutando análisis semántico...");
         const resultadoSemantico = await analizarSemantico(fuente);
 
+        ultimoReporteCompilacion.resultadoSemantico = resultadoSemantico;
+
         renderSemantico(resultadoSemantico);
 
         if (!resultadoSemantico || !resultadoSemantico.correcto) {
+            marcarLineasConError(extraerLineasErroresSemanticos(resultadoSemantico));
             renderGraficaNoEjecutada("No se generó gráfica porque existen errores semánticos.");
 
             const cantidadErrores = resultadoSemantico && resultadoSemantico.errores
@@ -253,6 +811,7 @@ btnCompilar.addEventListener("click", async () => {
             serverStatus.textContent = "Conectado";
             log("Análisis semántico finalizado con " + cantidadErrores + " error(es).", "Error");
             log("Compilación finalizada con errores semánticos.", "Sistema");
+            ultimoReporteCompilacion.estadoFinal = "Compilación finalizada con errores semánticos.";
             return;
         }
 
@@ -262,9 +821,13 @@ btnCompilar.addEventListener("click", async () => {
         log("Procesando módulo de gráficas desde JCUP...");
         const resultadoGrafica = await procesarGraficaConJCUP(fuente);
 
+        ultimoReporteCompilacion.resultadoGrafica = resultadoGrafica;
+
         renderGraficaDesdeBackend(resultadoGrafica);
 
         serverStatus.textContent = "Conectado";
+        limpiarMarcasErroresVisuales();
+        ultimoReporteCompilacion.estadoFinal = "Compilación finalizada correctamente.";
         log("Compilación finalizada correctamente.");
 
     } catch (error) {
@@ -275,6 +838,7 @@ btnCompilar.addEventListener("click", async () => {
         renderSintacticoNoEjecutado("No se recibió respuesta correcta del backend.");
         renderSemanticoNoEjecutado("No se recibió respuesta correcta del backend.");
         renderGraficaNoEjecutada("No se generó gráfica por error de conexión.");
+        ultimoReporteCompilacion.estadoFinal = "Error de conexión con el backend.";
 
     } finally {
         btnCompilar.disabled = false;
@@ -511,6 +1075,22 @@ function renderSemanticoNoEjecutado(motivo) {
     `;
 }
 
+
+function asegurarPanelGraficaVisible() {
+    const wrapper = document.getElementById("graficaCanvasWrapper");
+    const canvas = document.getElementById("graficaCanvas");
+
+    if (wrapper) {
+        wrapper.style.display = "block";
+        wrapper.classList.add("canvas-visible-card");
+    }
+
+    if (canvas) {
+        canvas.style.display = "block";
+    }
+}
+
+
 /* =========================================================
    MÓDULO DE GRÁFICAS
    URL OFICIAL DESDE JCUP + VISUALIZACIÓN CANVAS
@@ -543,6 +1123,7 @@ function renderGraficaDesdeBackend(resultado) {
     urlGrafica.textContent = resultado.url || "URL no disponible.";
     btnAbrirGrafica.disabled = !ultimaUrlGrafica;
 
+    asegurarPanelGraficaVisible();
     dibujarGraficaEnCanvas(resultado.expresion);
 
     log("URL de gráfica generada por JCUP: " + resultado.url);
@@ -553,6 +1134,7 @@ function renderGraficaNoEjecutada(motivo) {
     urlGrafica.textContent = motivo;
     btnAbrirGrafica.disabled = true;
     ultimaUrlGrafica = "";
+    asegurarPanelGraficaVisible();
     limpiarCanvasGrafica(motivo);
 }
 
@@ -606,6 +1188,7 @@ function asegurarCanvasGrafica() {
 
 function encontrarContenedorGrafica() {
     const posiblesIds = [
+        "graphPanel",
         "panelGraficas",
         "graficas",
         "grafica",
@@ -628,19 +1211,41 @@ function encontrarContenedorGrafica() {
 }
 
 function limpiarCanvasGrafica(mensaje) {
-    const canvas = asegurarCanvasGrafica();
-    const ctx = canvas.getContext("2d");
-    const width = canvas.width;
-    const height = canvas.height;
+    const canvas = document.getElementById("graficaCanvas");
 
-    ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, width, height);
+    if (!canvas) {
+        return;
+    }
+
+    asegurarPanelGraficaVisible();
+
+    const contenedor = document.getElementById("graficaCanvasWrapper") || canvas.parentElement;
+    const anchoDisponible = contenedor ? contenedor.clientWidth : 1000;
+    const cssWidth = Math.max(720, Math.min(anchoDisponible - 36, 1160));
+    const cssHeight = 420;
+
+    canvas.style.width = cssWidth + "px";
+    canvas.style.height = cssHeight + "px";
+
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(cssWidth * dpr);
+    canvas.height = Math.floor(cssHeight * dpr);
+
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+    const fondo = ctx.createLinearGradient(0, 0, 0, cssHeight);
+    fondo.addColorStop(0, "#ffffff");
+    fondo.addColorStop(1, "#f8fafc");
+    ctx.fillStyle = fondo;
+    ctx.fillRect(0, 0, cssWidth, cssHeight);
 
     ctx.fillStyle = "#334155";
     ctx.font = "18px Arial";
     ctx.textAlign = "center";
-    ctx.fillText(mensaje, width / 2, height / 2);
+    ctx.fillText(mensaje, cssWidth / 2, cssHeight / 2);
 
     const ayuda = document.getElementById("graficaAyuda");
     if (ayuda) {
@@ -649,11 +1254,43 @@ function limpiarCanvasGrafica(mensaje) {
 }
 
 function dibujarGraficaEnCanvas(expresionTurboX) {
-    const canvas = asegurarCanvasGrafica();
-    const ctx = canvas.getContext("2d");
+    const canvas = document.getElementById("graficaCanvas");
 
-    const width = canvas.width;
-    const height = canvas.height;
+    if (!canvas) {
+        return;
+    }
+
+    asegurarPanelGraficaVisible();
+
+    /*
+       Tamaño estable del canvas:
+       No dependemos de un rect en 0 cuando el panel acaba de activarse.
+    */
+    const contenedor = document.getElementById("graficaCanvasWrapper") || canvas.parentElement;
+    const anchoDisponible = contenedor ? contenedor.clientWidth : 1000;
+    const cssWidth = Math.max(720, Math.min(anchoDisponible - 36, 1160));
+    const cssHeight = 420;
+
+    canvas.style.width = cssWidth + "px";
+    canvas.style.height = cssHeight + "px";
+
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(cssWidth * dpr);
+    canvas.height = Math.floor(cssHeight * dpr);
+
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const width = cssWidth;
+    const height = cssHeight;
+
+    const paddingLeft = 42;
+    const paddingRight = 28;
+    const paddingTop = 42;
+    const paddingBottom = 38;
+
+    const plotW = width - paddingLeft - paddingRight;
+    const plotH = height - paddingTop - paddingBottom;
 
     const xMin = -10;
     const xMax = 10;
@@ -669,8 +1306,8 @@ function dibujarGraficaEnCanvas(expresionTurboX) {
 
     const puntos = [];
 
-    for (let px = 0; px <= width; px++) {
-        const x = xMin + (px / width) * (xMax - xMin);
+    for (let px = 0; px <= plotW; px++) {
+        const x = xMin + (px / plotW) * (xMax - xMin);
         let y;
 
         try {
@@ -707,26 +1344,35 @@ function dibujarGraficaEnCanvas(expresionTurboX) {
     }
 
     function mapX(x) {
-        return ((x - xMin) / (xMax - xMin)) * width;
+        return paddingLeft + ((x - xMin) / (xMax - xMin)) * plotW;
     }
 
     function mapY(y) {
-        return height - ((y - yMin) / (yMax - yMin)) * height;
+        return paddingTop + plotH - ((y - yMin) / (yMax - yMin)) * plotH;
     }
 
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = "#ffffff";
+
+    const fondo = ctx.createLinearGradient(0, 0, 0, height);
+    fondo.addColorStop(0, "#ffffff");
+    fondo.addColorStop(1, "#f8fafc");
+    ctx.fillStyle = fondo;
     ctx.fillRect(0, 0, width, height);
 
-    /* Cuadrícula */
+    // Borde interno
     ctx.strokeStyle = "#e2e8f0";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(paddingLeft, paddingTop, plotW, plotH);
+
+    // Cuadrícula vertical
+    ctx.strokeStyle = "#e5e7eb";
     ctx.lineWidth = 1;
 
     for (let gx = -10; gx <= 10; gx++) {
         const px = mapX(gx);
         ctx.beginPath();
-        ctx.moveTo(px, 0);
-        ctx.lineTo(px, height);
+        ctx.moveTo(px, paddingTop);
+        ctx.lineTo(px, paddingTop + plotH);
         ctx.stroke();
     }
 
@@ -736,61 +1382,65 @@ function dibujarGraficaEnCanvas(expresionTurboX) {
     for (let gy = inicioY; gy <= yMax; gy += pasoY) {
         const py = mapY(gy);
         ctx.beginPath();
-        ctx.moveTo(0, py);
-        ctx.lineTo(width, py);
+        ctx.moveTo(paddingLeft, py);
+        ctx.lineTo(paddingLeft + plotW, py);
         ctx.stroke();
     }
 
-    /* Ejes */
+    // Ejes principales
     ctx.strokeStyle = "#475569";
     ctx.lineWidth = 2;
 
     if (xMin <= 0 && xMax >= 0) {
         const ejeY = mapX(0);
         ctx.beginPath();
-        ctx.moveTo(ejeY, 0);
-        ctx.lineTo(ejeY, height);
+        ctx.moveTo(ejeY, paddingTop);
+        ctx.lineTo(ejeY, paddingTop + plotH);
         ctx.stroke();
     }
 
     if (yMin <= 0 && yMax >= 0) {
         const ejeX = mapY(0);
         ctx.beginPath();
-        ctx.moveTo(0, ejeX);
-        ctx.lineTo(width, ejeX);
+        ctx.moveTo(paddingLeft, ejeX);
+        ctx.lineTo(paddingLeft + plotW, ejeX);
         ctx.stroke();
     }
 
-    /* Etiquetas */
-    ctx.fillStyle = "#334155";
+    // Etiquetas X
+    ctx.fillStyle = "#475569";
     ctx.font = "13px Arial";
     ctx.textAlign = "center";
 
     for (let gx = -10; gx <= 10; gx += 2) {
         const px = mapX(gx);
-        const py = yMin <= 0 && yMax >= 0 ? mapY(0) + 18 : height - 10;
-        ctx.fillText(String(gx), px, py);
+        const py = yMin <= 0 && yMax >= 0 ? mapY(0) + 18 : paddingTop + plotH - 8;
+        ctx.fillText(String(gx), px, Math.min(py, height - 8));
     }
 
+    // Etiquetas Y
     ctx.textAlign = "left";
     const etiquetasY = generarEtiquetasY(yMin, yMax, pasoY);
 
     etiquetasY.forEach((valor) => {
         const py = mapY(valor);
-        if (py > 12 && py < height - 5) {
-            ctx.fillText(formatearNumero(valor), 8, py - 4);
+        if (py > paddingTop + 12 && py < paddingTop + plotH - 5) {
+            ctx.fillText(formatearNumero(valor), paddingLeft + 8, py - 4);
         }
     });
 
-    /* Curva */
+    // Curva
+    ctx.save();
     ctx.strokeStyle = "#2563eb";
     ctx.lineWidth = 3;
+    ctx.shadowColor = "rgba(37, 99, 235, 0.28)";
+    ctx.shadowBlur = 8;
     ctx.beginPath();
 
     let inicio = true;
 
-    for (let px = 0; px <= width; px++) {
-        const x = xMin + (px / width) * (xMax - xMin);
+    for (let px = 0; px <= plotW; px++) {
+        const x = xMin + (px / plotW) * (xMax - xMin);
         let y;
 
         try {
@@ -822,12 +1472,13 @@ function dibujarGraficaEnCanvas(expresionTurboX) {
     }
 
     ctx.stroke();
+    ctx.restore();
 
-    /* Título dentro del canvas */
+    // Título
     ctx.fillStyle = "#0f172a";
-    ctx.font = "bold 16px Arial";
+    ctx.font = "bold 18px Arial";
     ctx.textAlign = "left";
-    ctx.fillText("f(x) = " + expresionTurboX, 16, 26);
+    ctx.fillText("f(x) = " + expresionTurboX, paddingLeft + 10, 26);
 
     const ayuda = document.getElementById("graficaAyuda");
     if (ayuda) {
@@ -839,22 +1490,39 @@ function crearFuncionMatematica(expresionTurboX) {
     let expr = expresionTurboX.trim();
 
     /*
-       Se permite una expresión matemática sencilla.
-       Esto evita ejecutar texto peligroso con Function.
-       Permitido:
-       - números
-       - x o X
-       - operadores + - * / % ^
-       - paréntesis
-       - punto decimal o coma decimal
+       Se permite una expresión matemática segura para el canvas.
+       Funciones aceptadas:
+       sin, cos, tan, sqrt, abs, log, ln, exp
     */
-    if (!/^[0-9xX+\-*/%^().,\s]+$/.test(expr)) {
-        throw new Error("solo se permiten números, x, paréntesis y operadores + - * / % ^");
+    if (!/^[0-9xX+\-*/%^().,\sA-Za-z_]+$/.test(expr)) {
+        throw new Error("solo se permiten números, x, funciones matemáticas, paréntesis y operadores + - * / % ^");
+    }
+
+    const funcionesPermitidas = new Set([
+        "sin", "cos", "tan", "sqrt", "abs", "log", "ln", "exp",
+        "SIN", "COS", "TAN", "SQRT", "ABS", "LOG", "LN", "EXP"
+    ]);
+
+    const identificadores = expr.match(/\b[A-Za-z_][A-Za-z0-9_]*\b/g) || [];
+
+    for (const id of identificadores) {
+        if (id !== "x" && id !== "X" && !funcionesPermitidas.has(id)) {
+            throw new Error("identificador no permitido en la gráfica: " + id);
+        }
     }
 
     expr = expr.replaceAll(",", ".");
     expr = expr.replaceAll("^", "**");
     expr = expr.replace(/\bX\b/g, "x");
+
+    expr = expr.replace(/\bsin\s*\(/gi, "Math.sin(");
+    expr = expr.replace(/\bcos\s*\(/gi, "Math.cos(");
+    expr = expr.replace(/\btan\s*\(/gi, "Math.tan(");
+    expr = expr.replace(/\bsqrt\s*\(/gi, "Math.sqrt(");
+    expr = expr.replace(/\babs\s*\(/gi, "Math.abs(");
+    expr = expr.replace(/\bexp\s*\(/gi, "Math.exp(");
+    expr = expr.replace(/\bln\s*\(/gi, "Math.log(");
+    expr = expr.replace(/\blog\s*\(/gi, "Math.log10(");
 
     return new Function("x", `
         const resultado = ${expr};
@@ -935,6 +1603,10 @@ function log(mensaje, tipo = "Sistema") {
 }
 
 function limpiarResultados(limpiarConsola = true) {
+    lineasConError.clear();
+    lineasConAdvertencia.clear();
+    renderMarcasLineas();
+
     tablaTokens.innerHTML = '<tr><td colspan="5" class="empty-row">Presiona “Compilar código” para visualizar los tokens.</td></tr>';
     tablaSimbolos.innerHTML = '<tr><td colspan="4" class="empty-row">Sin datos semánticos todavía.</td></tr>';
 
@@ -971,6 +1643,366 @@ function escapeHtml(value) {
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
 }
+
+
+/* =========================================================
+   EJEMPLOS, REPORTE Y AUTOGUARDADO
+   ========================================================= */
+
+function obtenerEjemploTurboX(tipo) {
+    const ejemplos = {
+        correcto: `PROGRAMA PruebaCorrecta
+INICIO
+    ENTERO edad = 18;
+    ENTERO contador = 0;
+    REAL total = 10 + 5.5;
+    REAL promedio = total / 2;
+    CADENA nombre = "Carlos";
+    CARACTER letra = 'A';
+    LOGICO activo = VERDADERO;
+    LOGICO mayorEdad = edad >= 18;
+
+    IMPRIMIR(nombre);
+    IMPRIMIR(edad);
+    IMPRIMIR(total);
+
+    edad = edad + 1;
+    total = total + promedio;
+    activo = mayorEdad Y VERDADERO;
+
+    SI (edad >= 18 Y activo) ENTONCES {
+        IMPRIMIR("La persona es mayor de edad");
+    } SINO {
+        IMPRIMIR("La persona no cumple la condicion");
+    }
+
+    MIENTRAS (contador < 3) HACER {
+        IMPRIMIR(contador);
+        contador = contador + 1;
+    }
+
+    GRAFICAR f(x) = x ^ 2 + x + 2;
+FIN`,
+
+        lexico: `PROGRAMA ErrorLexico
+INICIO
+    ENTERO edad = 18;
+    edad = edad @ 2;
+    IMPRIMIR(edad);
+FIN`,
+
+        sintactico: `PROGRAMA ErrorSintactico
+INICIO
+    ENTERO edad = 18
+    REAL total = 10 + 5.5;
+    IMPRIMIR(edad);
+FIN`,
+
+        semantico: `PROGRAMA ErrorSemantico
+INICIO
+    ENTERO edad = "hola";
+    REAL total = 10 + 5.5;
+    edad = total;
+    IMPRIMIR(apellido);
+
+    ENTERO edad = 20;
+
+    SI ("texto") ENTONCES {
+        IMPRIMIR("Condicion incorrecta");
+    }
+FIN`,
+
+        grafica: `PROGRAMA GraficaCuadratica
+INICIO
+    REAL valor = 5.5;
+    IMPRIMIR(valor);
+
+    GRAFICAR f(x) = x ^ 2 + x + 2;
+FIN`,
+
+        trigonometrica: `PROGRAMA GraficaTrigonometrica
+INICIO
+    REAL valor = 1.5;
+    IMPRIMIR(valor);
+
+    GRAFICAR f(x) = sin(x) + cos(x);
+FIN`,
+
+        divisionCero: `PROGRAMA DivisionCero
+INICIO
+    ENTERO numero = 10 / 0;
+    REAL residuo = 20 % 0;
+    IMPRIMIR(numero);
+FIN`
+    };
+
+    return ejemplos[tipo] || ejemplos.correcto;
+}
+
+function obtenerNombreEjemplo(tipo) {
+    const nombres = {
+        correcto: "Código correcto",
+        lexico: "Error léxico",
+        sintactico: "Error sintáctico",
+        semantico: "Error semántico",
+        grafica: "Gráfica cuadrática",
+        trigonometrica: "Gráfica trigonométrica",
+        divisionCero: "División entre cero"
+    };
+
+    return nombres[tipo] || "Código correcto";
+}
+
+function crearReporteBase(fuente) {
+    return {
+        fecha: new Date().toLocaleString(),
+        codigo: fuente,
+        tokens: [],
+        resultadoSintactico: null,
+        resultadoSemantico: null,
+        resultadoGrafica: null,
+        estadoFinal: "Pendiente"
+    };
+}
+
+function descargarReporteCompilacion() {
+    const reporte = construirTextoReporte();
+    const blob = new Blob([reporte], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+
+    const enlace = document.createElement("a");
+    enlace.href = url;
+    enlace.download = "reporte_compilacion_turbo_x.txt";
+    document.body.appendChild(enlace);
+    enlace.click();
+    document.body.removeChild(enlace);
+
+    URL.revokeObjectURL(url);
+
+    log("Reporte de compilación descargado.");
+}
+
+function construirTextoReporte() {
+    const r = ultimoReporteCompilacion || crearReporteBase(codigo.value.trim());
+
+    const linea = "=".repeat(78);
+    const sublinea = "-".repeat(78);
+
+    function valorSeguro(valor) {
+        if (valor === null || valor === undefined || valor === "") {
+            return "N/A";
+        }
+
+        return String(valor);
+    }
+
+    function siNo(valor) {
+        return valor ? "Sí" : "No";
+    }
+
+    function estadoTexto(valor) {
+        return valor ? "Correcto" : "Con errores";
+    }
+
+    function fila(columnas, anchos) {
+        return columnas.map((columna, index) => {
+            const texto = valorSeguro(columna).replace(/\s+/g, " ");
+            const ancho = anchos[index];
+
+            if (texto.length > ancho) {
+                return texto.substring(0, ancho - 3) + "...";
+            }
+
+            return texto.padEnd(ancho, " ");
+        }).join(" | ");
+    }
+
+    const tokens = r.tokens || [];
+    const erroresLexicos = contarErroresLexicos(tokens);
+    const resultadoSintactico = r.resultadoSintactico;
+    const resultadoSemantico = r.resultadoSemantico;
+    const resultadoGrafica = r.resultadoGrafica;
+
+    let texto = "";
+
+    texto += linea + "\n";
+    texto += "REPORTE DE COMPILACIÓN - TURBO X\n";
+    texto += linea + "\n\n";
+
+    texto += "1. RESUMEN GENERAL\n";
+    texto += sublinea + "\n";
+    texto += "Fecha de generación : " + valorSeguro(r.fecha || new Date().toLocaleString()) + "\n";
+    texto += "Estado final        : " + valorSeguro(r.estadoFinal || "Pendiente") + "\n";
+    texto += "Total de tokens     : " + tokens.length + "\n";
+    texto += "Errores léxicos     : " + erroresLexicos + "\n";
+    texto += "Sintaxis            : " + (resultadoSintactico ? estadoTexto(resultadoSintactico.correcto) : "No ejecutada") + "\n";
+    texto += "Semántica           : " + (resultadoSemantico ? estadoTexto(resultadoSemantico.correcto) : "No ejecutada") + "\n";
+    texto += "Gráfica             : " + (resultadoGrafica && resultadoGrafica.graficaEncontrada ? "Generada" : "No generada") + "\n\n";
+
+    texto += "2. CÓDIGO FUENTE\n";
+    texto += sublinea + "\n";
+    const codigoFuente = r.codigo || codigo.value || "";
+    const lineasCodigo = codigoFuente.split("\n");
+
+    lineasCodigo.forEach((lineaCodigo, index) => {
+        const numero = String(index + 1).padStart(3, " ");
+        texto += numero + " | " + lineaCodigo + "\n";
+    });
+
+    texto += "\n";
+
+    texto += "3. ANÁLISIS LÉXICO\n";
+    texto += sublinea + "\n";
+    texto += "Total de tokens reconocidos: " + tokens.length + "\n";
+    texto += "Errores léxicos detectados : " + erroresLexicos + "\n\n";
+
+    if (tokens.length > 0) {
+        const anchos = [5, 22, 24, 8, 8];
+        texto += fila(["No.", "Tipo", "Lexema", "Línea", "Columna"], anchos) + "\n";
+        texto += "-".repeat(78) + "\n";
+
+        tokens.forEach((token, index) => {
+            texto += fila([
+                index + 1,
+                token.tipo,
+                token.lexema,
+                token.linea,
+                token.columna
+            ], anchos) + "\n";
+        });
+
+        texto += "\n";
+    }
+
+    texto += "4. ANÁLISIS SINTÁCTICO\n";
+    texto += sublinea + "\n";
+
+    if (resultadoSintactico) {
+        texto += "Estado  : " + estadoTexto(resultadoSintactico.correcto) + "\n";
+        texto += "Mensaje : " + valorSeguro(resultadoSintactico.mensaje) + "\n";
+
+        const errores = resultadoSintactico.errores || [];
+
+        if (errores.length > 0) {
+            texto += "\nErrores sintácticos:\n";
+            errores.forEach((error, index) => {
+                texto += "  " + (index + 1) + ". " + error + "\n";
+            });
+        }
+    } else {
+        texto += "No ejecutado o sin datos disponibles.\n";
+    }
+
+    texto += "\n";
+
+    texto += "5. ANÁLISIS SEMÁNTICO\n";
+    texto += sublinea + "\n";
+
+    if (resultadoSemantico) {
+        texto += "Estado  : " + estadoTexto(resultadoSemantico.correcto) + "\n";
+        texto += "Mensaje : " + valorSeguro(resultadoSemantico.mensaje) + "\n";
+
+        const errores = resultadoSemantico.errores || [];
+
+        if (errores.length > 0) {
+            texto += "\nErrores semánticos:\n";
+            errores.forEach((error, index) => {
+                texto += "  " + (index + 1) + ". Línea " + valorSeguro(error.linea)
+                    + " | " + valorSeguro(error.lexema)
+                    + " | " + valorSeguro(error.descripcion) + "\n";
+            });
+        }
+
+        const simbolos = resultadoSemantico.tablaSimbolos || [];
+
+        if (simbolos.length > 0) {
+            texto += "\nTabla de símbolos:\n";
+            const anchos = [22, 14, 22, 8, 14];
+            texto += fila(["Nombre", "Tipo", "Categoría", "Línea", "Estado"], anchos) + "\n";
+            texto += "-".repeat(78) + "\n";
+
+            simbolos.forEach((simbolo) => {
+                texto += fila([
+                    simbolo.nombre,
+                    simbolo.tipo,
+                    simbolo.categoria || "VARIABLE",
+                    simbolo.lineaDeclaracion,
+                    simbolo.inicializado ? "Inicializada" : "Declarada"
+                ], anchos) + "\n";
+            });
+        }
+    } else {
+        texto += "No ejecutado o sin datos disponibles.\n";
+    }
+
+    texto += "\n";
+
+    texto += "6. MÓDULO DE GRÁFICAS\n";
+    texto += sublinea + "\n";
+
+    if (resultadoGrafica) {
+        texto += "Estado              : " + estadoTexto(resultadoGrafica.correcta) + "\n";
+        texto += "Mensaje             : " + valorSeguro(resultadoGrafica.mensaje) + "\n";
+        texto += "Gráfica encontrada  : " + siNo(resultadoGrafica.graficaEncontrada) + "\n";
+        texto += "Función             : " + valorSeguro(resultadoGrafica.funcion) + "\n";
+        texto += "Variable            : " + valorSeguro(resultadoGrafica.variable) + "\n";
+        texto += "Expresión           : " + valorSeguro(resultadoGrafica.expresion) + "\n";
+        texto += "URL Desmos          : " + valorSeguro(resultadoGrafica.url) + "\n";
+    } else {
+        texto += "No ejecutado o sin datos disponibles.\n";
+    }
+
+    texto += "\n";
+    texto += linea + "\n";
+    texto += "Fin del reporte.\n";
+    texto += linea + "\n";
+
+    return texto;
+}
+
+function actualizarEstadisticasEditor() {
+    if (!editorStats || !codigo) {
+        return;
+    }
+
+    const texto = codigo.value;
+    const totalLineas = texto.length === 0 ? 1 : texto.split("\n").length;
+    const caracteres = texto.length;
+
+    editorStats.textContent = `Líneas: ${totalLineas} | Caracteres: ${caracteres}`;
+}
+
+function programarAutoguardado() {
+    if (!codigo) {
+        return;
+    }
+
+    if (autosaveTimer) {
+        clearTimeout(autosaveTimer);
+    }
+
+    autosaveTimer = setTimeout(() => {
+        guardarCodigoLocal();
+    }, 500);
+}
+
+function guardarCodigoLocal() {
+    localStorage.setItem("turbox_codigo_actual", codigo.value);
+
+    if (autosaveStatus) {
+        autosaveStatus.textContent = "Guardado: " + new Date().toLocaleTimeString();
+    }
+}
+
+function cargarCodigoLocal() {
+    const codigoGuardado = localStorage.getItem("turbox_codigo_actual");
+
+    if (codigoGuardado && !codigo.value.trim()) {
+        codigo.value = codigoGuardado;
+        fileName.textContent = "autoguardado_local.tx";
+    }
+}
+
 
 function ejemploTurboX() {
     return `PROGRAMA SistemaNotas
@@ -1020,6 +2052,7 @@ FIN`;
    INICIALIZACIÓN
    ========================================================= */
 
+cargarCodigoLocal();
 actualizarLineas();
 inicializarTema();
 limpiarCanvasGrafica("Gráfica pendiente. Compila un programa con GRAFICAR para visualizarla.");

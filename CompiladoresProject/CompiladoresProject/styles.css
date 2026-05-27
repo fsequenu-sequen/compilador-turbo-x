@@ -689,42 +689,81 @@ td {
 
 
 /* =========================================================
-   BOTÓN Y TEMA CLARO / OSCURO
-   El tema oscuro actual queda como predeterminado.
-   El claro solo se activa cuando body tiene la clase .light-theme
+   TEMA CLARO / OSCURO
    ========================================================= */
 
 .theme-toggle {
-    min-width: 104px;
+    min-width: 112px;
 }
 
 body.light-theme {
     --bg-main: #f8fafc;
     --bg-secondary: #eef2ff;
-    --panel: rgba(255, 255, 255, 0.82);
-    --panel-strong: rgba(255, 255, 255, 0.96);
+    --panel: rgba(255, 255, 255, 0.84);
+    --panel-strong: rgba(37, 99, 235, 0.10);
     --border: rgba(100, 116, 139, 0.28);
     --text-main: #0f172a;
     --text-muted: #475569;
     --accent: #2563eb;
     --accent-2: #7c3aed;
-    --success: #15803d;
-    --warning: #ca8a04;
-    --danger: #dc2626;
     --code-bg: #ffffff;
-    --shadow: 0 20px 50px rgba(15, 23, 42, 0.10);
-
+    --shadow: 0 20px 45px rgba(15, 23, 42, 0.10);
     color: var(--text-main);
     background:
-        radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 34%),
-        radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.12), transparent 34%),
-        linear-gradient(135deg, #f8fafc 0%, #eef2ff 50%, #e0f2fe 100%);
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.10), transparent 35%),
+        radial-gradient(circle at bottom right, rgba(124, 58, 237, 0.10), transparent 35%),
+        linear-gradient(135deg, #f8fafc 0%, #eef2ff 52%, #e0f2fe 100%);
 }
 
 body.light-theme .sidebar {
-    background: rgba(255, 255, 255, 0.88);
-    border-right: 1px solid rgba(100, 116, 139, 0.30);
-    box-shadow: 8px 0 28px rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.82);
+    border-right: 1px solid var(--border);
+}
+
+body.light-theme .main-content {
+    color: var(--text-main);
+}
+
+body.light-theme .workspace-panel,
+body.light-theme .metric-card,
+body.light-theme .sidebar-card,
+body.light-theme .mini-info,
+body.light-theme .console-panel {
+    background: rgba(255, 255, 255, 0.78);
+    border-color: var(--border);
+    box-shadow: var(--shadow);
+}
+
+body.light-theme .editor-card,
+body.light-theme .table-card,
+body.light-theme .result-card,
+body.light-theme .url-box,
+body.light-theme .code-output {
+    background: #ffffff;
+    border-color: var(--border);
+}
+
+body.light-theme .editor-toolbar,
+body.light-theme .console-header {
+    background: rgba(37, 99, 235, 0.06);
+    border-color: var(--border);
+}
+
+body.light-theme th {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+body.light-theme td,
+body.light-theme .console-body p,
+body.light-theme .file-name,
+body.light-theme .metric-card small,
+body.light-theme .metric-label,
+body.light-theme .panel-header p,
+body.light-theme .brand p,
+body.light-theme .mini-info p,
+body.light-theme .sidebar-card p {
+    color: #475569;
 }
 
 body.light-theme .brand h1,
@@ -733,31 +772,8 @@ body.light-theme .panel-header h3,
 body.light-theme .console-header h3,
 body.light-theme .result-card h4,
 body.light-theme .metric-card strong,
-body.light-theme .sidebar-card strong,
-body.light-theme h1,
-body.light-theme h2,
-body.light-theme h3,
-body.light-theme h4 {
+body.light-theme .sidebar-card strong {
     color: #0f172a;
-}
-
-body.light-theme .brand p,
-body.light-theme .panel-header p,
-body.light-theme .metric-label,
-body.light-theme .metric-card small,
-body.light-theme .sidebar-card p,
-body.light-theme .mini-info p,
-body.light-theme .file-name,
-body.light-theme td,
-body.light-theme .empty-row,
-body.light-theme .console-body p,
-body.light-theme .url-box,
-body.light-theme #graficaAyuda {
-    color: #475569;
-}
-
-body.light-theme .eyebrow {
-    color: #2563eb;
 }
 
 body.light-theme .menu-item {
@@ -770,125 +786,45 @@ body.light-theme .menu-item.active {
     color: #1d4ed8;
 }
 
-body.light-theme .menu-item.active {
-    outline: 1px solid rgba(37, 99, 235, 0.25);
-}
-
-body.light-theme .workspace-panel,
-body.light-theme .metric-card,
-body.light-theme .sidebar-card,
-body.light-theme .mini-info,
-body.light-theme .console-panel,
-body.light-theme .table-card,
-body.light-theme .result-card {
-    background: rgba(255, 255, 255, 0.82);
-    border-color: rgba(100, 116, 139, 0.28);
-    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.10);
-}
-
-body.light-theme .editor-card,
-body.light-theme .code-output,
-body.light-theme .url-box {
+body.light-theme .btn.secondary,
+body.light-theme .btn.ghost,
+body.light-theme .tool-btn {
     background: #ffffff;
-    border-color: rgba(100, 116, 139, 0.28);
+    color: #0f172a;
+    border: 1px solid var(--border);
 }
 
-body.light-theme .editor-toolbar,
-body.light-theme .console-header {
-    background: rgba(226, 232, 240, 0.72);
-    border-color: rgba(100, 116, 139, 0.28);
-}
-
-body.light-theme .code-wrapper {
-    background: #ffffff;
+body.light-theme .btn.primary {
+    color: #ffffff;
 }
 
 body.light-theme .line-numbers {
     background: #f1f5f9;
     color: #64748b;
-    border-color: rgba(100, 116, 139, 0.28);
-}
-
-body.light-theme #codigo {
-    color: #0f172a;
-    background: #ffffff;
-    caret-color: #2563eb;
-}
-
-body.light-theme #codigo::placeholder {
-    color: #94a3b8;
-}
-
-body.light-theme th {
-    background: #e2e8f0;
-    color: #0f172a;
-    border-color: rgba(100, 116, 139, 0.25);
-}
-
-body.light-theme td {
-    border-color: rgba(100, 116, 139, 0.20);
-}
-
-body.light-theme tr:hover td {
-    background: rgba(37, 99, 235, 0.06);
+    border-right: 1px solid var(--border);
 }
 
 body.light-theme .result-box {
     background: #f8fafc;
-    border-color: rgba(100, 116, 139, 0.30);
     color: #334155;
-}
-
-body.light-theme .result-box.waiting {
-    border-color: rgba(100, 116, 139, 0.35);
+    border-color: var(--border);
 }
 
 body.light-theme .success-box {
-    background: rgba(220, 252, 231, 0.82) !important;
     border-color: rgba(22, 163, 74, 0.45) !important;
+    background: rgba(220, 252, 231, 0.82) !important;
     color: #14532d !important;
 }
 
 body.light-theme .error-box {
-    background: rgba(254, 226, 226, 0.86) !important;
     border-color: rgba(220, 38, 38, 0.45) !important;
+    background: rgba(254, 226, 226, 0.86) !important;
     color: #7f1d1d !important;
 }
 
-body.light-theme .console-body {
-    background: #ffffff;
-}
-
-body.light-theme .console-body span {
-    color: #0284c7;
-}
-
-body.light-theme .btn {
-    background: #ffffff;
+body.light-theme .math-preview {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.10), rgba(124, 58, 237, 0.10));
     color: #0f172a;
-    border: 1px solid rgba(100, 116, 139, 0.35);
-}
-
-body.light-theme .btn.primary {
-    background: linear-gradient(135deg, #2563eb, #7c3aed);
-    color: #ffffff;
-    border-color: transparent;
-}
-
-body.light-theme .btn.secondary {
-    background: #f8fafc;
-    color: #0f172a;
-}
-
-body.light-theme .btn.ghost {
-    background: #ffffff;
-    color: #0f172a;
-}
-
-body.light-theme .tool-btn {
-    background: #ffffff;
-    color: #0f172a;
-    border: 1px solid rgba(100, 116, 139, 0.35);
 }
 
 body.light-theme .chip {
@@ -897,28 +833,880 @@ body.light-theme .chip {
     color: #1d4ed8;
 }
 
-body.light-theme .token-badge {
-    background: rgba(37, 99, 235, 0.12);
-    color: #1d4ed8;
+/* =========================================================
+   EDITOR CON RESALTADO DE SINTAXIS
+   ========================================================= */
+
+.highlight-editor {
+    position: relative;
+    min-height: 440px;
+    max-height: 520px;
+    overflow: hidden;
+    background: transparent;
 }
 
-body.light-theme .token-error {
-    background: rgba(220, 38, 38, 0.13) !important;
-    color: #b91c1c !important;
+.highlight-layer,
+.code-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    min-height: 440px;
+    max-height: 520px;
+    margin: 0;
+    padding: 16px;
+    border: none;
+    outline: none;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 15px;
+    line-height: 1.55;
+    tab-size: 4;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
 }
 
-body.light-theme .math-preview {
-    background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(124, 58, 237, 0.10));
+.highlight-layer {
+    z-index: 1;
+    overflow: hidden;
+    pointer-events: none;
+    color: #dce7ff;
+    background: transparent;
+}
+
+.code-input {
+    z-index: 2;
+    resize: vertical;
+    overflow: auto;
+    background: transparent !important;
+    color: transparent !important;
+    caret-color: #eaf0ff;
+    -webkit-text-fill-color: transparent;
+}
+
+.code-input::selection {
+    background: rgba(53, 194, 255, 0.28);
+}
+
+.code-input::placeholder {
+    color: #66758d;
+    -webkit-text-fill-color: #66758d;
+}
+
+/* Resaltado en tema oscuro */
+.syntax-keyword {
+    color: #7dd3fc;
+    font-weight: 800;
+}
+
+.syntax-type {
+    color: #86efac;
+    font-weight: 800;
+}
+
+.syntax-boolean {
+    color: #fbbf24;
+    font-weight: 800;
+}
+
+.syntax-function {
+    color: #c084fc;
+    font-weight: 800;
+}
+
+.syntax-identifier {
+    color: #dce7ff;
+}
+
+.syntax-string {
+    color: #fde68a;
+}
+
+.syntax-char {
+    color: #fdba74;
+}
+
+.syntax-number {
+    color: #67e8f9;
+}
+
+.syntax-comment {
+    color: #64748b;
+    font-style: italic;
+}
+
+.syntax-operator {
+    color: #f0abfc;
+    font-weight: 700;
+}
+
+/* Resaltado en tema claro */
+body.light-theme .highlight-layer {
     color: #0f172a;
 }
 
+body.light-theme .code-input {
+    caret-color: #1d4ed8;
+}
+
+body.light-theme .code-input::selection {
+    background: rgba(37, 99, 235, 0.20);
+}
+
+body.light-theme .syntax-keyword {
+    color: #1d4ed8;
+}
+
+body.light-theme .syntax-type {
+    color: #047857;
+}
+
+body.light-theme .syntax-boolean {
+    color: #b45309;
+}
+
+body.light-theme .syntax-function {
+    color: #7c3aed;
+}
+
+body.light-theme .syntax-identifier {
+    color: #0f172a;
+}
+
+body.light-theme .syntax-string {
+    color: #a16207;
+}
+
+body.light-theme .syntax-char {
+    color: #c2410c;
+}
+
+body.light-theme .syntax-number {
+    color: #0891b2;
+}
+
+body.light-theme .syntax-comment {
+    color: #64748b;
+}
+
+body.light-theme .syntax-operator {
+    color: #be185d;
+}
+
+
+
+/* =========================================================
+   MEJORAS UI: SELECTOR, REPORTE, AUTOGUARDADO
+   ========================================================= */
+
+.select-example {
+    min-height: 42px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.10);
+    color: var(--text-main);
+    font-weight: 700;
+    outline: none;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.select-example:hover,
+.select-example:focus {
+    filter: brightness(1.10);
+    border-color: rgba(53, 194, 255, 0.45);
+}
+
+.select-example option {
+    background: #0d1b2e;
+    color: #eaf0ff;
+}
+
+.editor-statusbar {
+    min-height: 38px;
+    padding: 9px 14px;
+    border-top: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.045);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+#autosaveStatus {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+body.light-theme .select-example {
+    background: #ffffff;
+    color: #0f172a;
+    border-color: var(--border);
+}
+
+body.light-theme .select-example option {
+    background: #ffffff;
+    color: #0f172a;
+}
+
+body.light-theme .editor-statusbar {
+    background: rgba(37, 99, 235, 0.05);
+    border-color: var(--border);
+    color: #475569;
+}
+
+body.light-theme #autosaveStatus {
+    color: #2563eb;
+}
+
+@media (max-width: 720px) {
+    .select-example {
+        width: 100%;
+    }
+
+    .editor-statusbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+
+/* =========================================================
+   MARCADO DE LÍNEAS CON ERROR Y VALIDACIÓN EN VIVO
+   ========================================================= */
+
+.error-line-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.highlight-layer {
+    z-index: 1;
+}
+
+.code-input {
+    z-index: 2;
+}
+
+.compile-error-line,
+.live-warning-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-left: 4px solid transparent;
+}
+
+.compile-error-line {
+    background: rgba(239, 68, 68, 0.20);
+    border-left-color: #ef4444;
+}
+
+.live-warning-line {
+    background: rgba(245, 158, 11, 0.16);
+    border-left-color: #f59e0b;
+}
+
+.line-numbers span {
+    display: inline-block;
+    width: 100%;
+    padding-right: 6px;
+    border-radius: 8px;
+}
+
+.line-number-error {
+    background: rgba(239, 68, 68, 0.25);
+    color: #fecaca;
+    font-weight: 800;
+}
+
+.line-number-warning {
+    background: rgba(245, 158, 11, 0.22);
+    color: #fde68a;
+    font-weight: 800;
+}
+
+body.light-theme .compile-error-line {
+    background: rgba(220, 38, 38, 0.16);
+    border-left-color: #dc2626;
+}
+
+body.light-theme .live-warning-line {
+    background: rgba(217, 119, 6, 0.16);
+    border-left-color: #d97706;
+}
+
+body.light-theme .line-number-error {
+    background: rgba(220, 38, 38, 0.18);
+    color: #991b1b;
+}
+
+body.light-theme .line-number-warning {
+    background: rgba(217, 119, 6, 0.18);
+    color: #92400e;
+}
+
+
+
+/* =========================================================
+   AJUSTE FINAL DE MARCADO DE LÍNEAS
+   ========================================================= */
+
+.error-line-layer {
+    padding-top: 0;
+}
+
+.compile-error-line {
+    background: rgba(239, 68, 68, 0.14);
+    border-left-color: #ef4444;
+}
+
+.live-warning-line {
+    background: rgba(245, 158, 11, 0.12);
+    border-left-color: #f59e0b;
+}
+
+.line-number-error {
+    background: rgba(239, 68, 68, 0.22);
+    color: #fecaca;
+    font-weight: 900;
+}
+
+.line-number-warning {
+    background: rgba(245, 158, 11, 0.18);
+    color: #fde68a;
+    font-weight: 900;
+}
+
+body.light-theme .compile-error-line {
+    background: rgba(220, 38, 38, 0.12);
+}
+
+body.light-theme .live-warning-line {
+    background: rgba(217, 119, 6, 0.12);
+}
+
+
+
+/* =========================================================
+   CORRECCIÓN FINAL DEL EDITOR
+   - Alineación exacta entre número de línea y código
+   - Scroll sincronizado
+   - Barra inferior sin obstruir el código
+   ========================================================= */
+
+.code-wrapper {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr);
+    min-height: 500px;
+    max-height: 500px;
+    overflow: hidden;
+}
+
+.line-numbers {
+    height: 500px;
+    min-height: 500px;
+    max-height: 500px;
+    padding: 16px 10px 16px 6px;
+    line-height: 1.55;
+    font-size: 15px;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.line-numbers span {
+    display: block;
+    height: 23.25px;
+    line-height: 23.25px;
+    padding-right: 6px;
+    border-radius: 7px;
+}
+
+.highlight-editor {
+    position: relative;
+    height: 500px;
+    min-height: 500px;
+    max-height: 500px;
+    overflow: hidden;
+}
+
+.highlight-layer,
+.code-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 500px;
+    min-height: 500px;
+    max-height: 500px;
+    margin: 0;
+    padding: 16px;
+    border: none;
+    outline: none;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 15px;
+    line-height: 23.25px;
+    tab-size: 4;
+    white-space: pre;
+    overflow-wrap: normal;
+    box-sizing: border-box;
+}
+
+.highlight-layer {
+    overflow: hidden;
+}
+
+.code-input {
+    overflow: auto;
+    resize: none;
+}
+
+.error-line-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.compile-error-line,
+.live-warning-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 23.25px;
+    border-left: 4px solid transparent;
+}
+
+.editor-statusbar {
+    min-height: 34px;
+    padding: 8px 14px;
+    border-top: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.045);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    color: var(--text-muted);
+    font-size: 12px;
+    position: relative;
+    z-index: 5;
+}
+
+.editor-card {
+    overflow: hidden;
+}
+
+body.light-theme .editor-statusbar {
+    background: rgba(37, 99, 235, 0.05);
+}
+
+/* Scrollbar del textarea para que no tape visualmente el código */
+.code-input::-webkit-scrollbar {
+    width: 11px;
+    height: 11px;
+}
+
+.code-input::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.45);
+}
+
+.code-input::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.55);
+    border-radius: 999px;
+}
+
+body.light-theme .code-input::-webkit-scrollbar-track {
+    background: #e2e8f0;
+}
+
+body.light-theme .code-input::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+}
+
+/* =========================================================
+   MEJORA VISUAL DEL MÓDULO DE GRÁFICAS
+   ========================================================= */
+
+.graph-layout {
+    align-items: stretch;
+}
+
+.math-preview,
+.url-box {
+    border-radius: 18px;
+}
+
+.math-preview {
+    min-height: 92px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 22px 18px;
+    background:
+        radial-gradient(circle at top left, rgba(53, 194, 255, 0.18), transparent 38%),
+        linear-gradient(135deg, rgba(53, 194, 255, 0.16), rgba(124, 92, 255, 0.16));
+    border: 1px solid rgba(53, 194, 255, 0.22);
+    font-size: 27px;
+    color: #eaf0ff;
+    box-shadow: inset 0 0 30px rgba(53, 194, 255, 0.05);
+}
+
+.url-box {
+    min-height: 74px;
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    background: rgba(2, 6, 23, 0.58);
+    color: #bfdbfe;
+    font-family: "Consolas", "Courier New", monospace;
+    line-height: 1.45;
+}
+
+#btnAbrirGrafica {
+    width: 100%;
+    margin-top: 10px;
+}
+
+.graph-card,
+#graficaCanvasWrapper {
+    margin-top: 18px;
+    padding: 18px;
+    border-radius: 22px;
+    background: rgba(15, 23, 42, 0.76);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+
+.graph-card h3,
+#graficaCanvasWrapper h3 {
+    margin-bottom: 12px;
+}
+
+#graficaCanvas {
+    width: 100%;
+    height: 460px;
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    background: #ffffff;
+    display: block;
+}
+
+#graficaAyuda {
+    margin: 12px 0 0 0;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(2, 6, 23, 0.38);
+    color: #cbd5e1;
+    font-size: 13px;
+}
+
+body.light-theme .math-preview {
+    background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 38%),
+        linear-gradient(135deg, rgba(37, 99, 235, 0.10), rgba(124, 58, 237, 0.10));
+    border-color: rgba(37, 99, 235, 0.20);
+    color: #0f172a;
+}
+
+body.light-theme .url-box {
+    background: #ffffff;
+    color: #1d4ed8;
+    border-color: rgba(148, 163, 184, 0.32);
+}
+
+body.light-theme .graph-card,
 body.light-theme #graficaCanvasWrapper {
-    background: rgba(255, 255, 255, 0.86) !important;
-    border-color: rgba(100, 116, 139, 0.30) !important;
+    background: rgba(255, 255, 255, 0.82);
+    border-color: rgba(148, 163, 184, 0.30);
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
 }
 
-body.light-theme #graficaCanvas {
+body.light-theme #graficaAyuda {
+    background: #f8fafc;
+    color: #475569;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+@media (max-width: 720px) {
+    .code-wrapper,
+    .line-numbers,
+    .highlight-editor,
+    .highlight-layer,
+    .code-input {
+        height: 390px;
+        min-height: 390px;
+        max-height: 390px;
+    }
+
+    #graficaCanvas {
+        height: 340px;
+    }
+}
+
+
+/* =========================================================
+   FIX DEFINITIVO DEL EDITOR Y NUMERACIÓN
+   ========================================================= */
+
+/*
+   El editor necesita tres capas:
+   1. Números de línea con scroll interno sincronizado.
+   2. Capa de resaltado con todo el contenido visible internamente.
+   3. Textarea transparente que recibe la escritura.
+*/
+
+.code-wrapper {
+    display: grid !important;
+    grid-template-columns: 54px minmax(0, 1fr) !important;
+    height: 560px !important;
+    min-height: 560px !important;
+    max-height: 560px !important;
+    overflow: hidden !important;
+}
+
+.line-numbers {
+    height: 560px !important;
+    min-height: 560px !important;
+    max-height: 560px !important;
+    padding: 16px 8px 16px 6px !important;
+    line-height: 23.25px !important;
+    font-size: 15px !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    transform: none !important;
+}
+
+.line-numbers span {
+    display: block !important;
+    height: 23.25px !important;
+    line-height: 23.25px !important;
+    padding-right: 6px !important;
+    border-radius: 7px !important;
+    box-sizing: border-box !important;
+}
+
+.highlight-editor {
+    position: relative !important;
+    height: 560px !important;
+    min-height: 560px !important;
+    max-height: 560px !important;
+    overflow: hidden !important;
+    background: transparent !important;
+}
+
+.error-line-layer {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+}
+
+.highlight-layer {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: auto !important;
+    bottom: auto !important;
+    z-index: 1 !important;
+    width: max-content !important;
+    min-width: 100% !important;
+    height: auto !important;
+    min-height: 100% !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 16px !important;
+    border: none !important;
+    outline: none !important;
+    overflow: visible !important;
+    white-space: pre !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+    box-sizing: border-box !important;
+    font-family: "Consolas", "Courier New", monospace !important;
+    font-size: 15px !important;
+    line-height: 23.25px !important;
+    tab-size: 4 !important;
+    pointer-events: none !important;
+}
+
+.code-input {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 2 !important;
+    width: 100% !important;
+    height: 560px !important;
+    min-height: 560px !important;
+    max-height: 560px !important;
+    margin: 0 !important;
+    padding: 16px !important;
+    border: none !important;
+    outline: none !important;
+    resize: none !important;
+    overflow: auto !important;
+    white-space: pre !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+    box-sizing: border-box !important;
+    font-family: "Consolas", "Courier New", monospace !important;
+    font-size: 15px !important;
+    line-height: 23.25px !important;
+    tab-size: 4 !important;
+    background: transparent !important;
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+    caret-color: #eaf0ff !important;
+}
+
+.editor-statusbar {
+    position: relative !important;
+    z-index: 4 !important;
+    min-height: 34px !important;
+    padding: 8px 14px !important;
+    border-top: 1px solid var(--border) !important;
+}
+
+.compile-error-line,
+.live-warning-line {
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 23.25px !important;
+    border-left: 4px solid transparent !important;
+}
+
+body.light-theme .code-input {
+    caret-color: #1d4ed8 !important;
+}
+
+/* Ajuste responsive del editor */
+@media (max-width: 720px) {
+    .code-wrapper,
+    .line-numbers,
+    .highlight-editor,
+    .code-input {
+        height: 430px !important;
+        min-height: 430px !important;
+        max-height: 430px !important;
+    }
+}
+
+/* =========================================================
+   FIX VISUAL DE GRÁFICAS RESPONSIVE
+   ========================================================= */
+
+.graph-card,
+#graficaCanvasWrapper {
+    overflow: hidden !important;
+}
+
+#graficaCanvas {
+    width: 100% !important;
+    max-width: 1120px !important;
+    height: 420px !important;
+    display: block !important;
+    margin: 0 auto !important;
+    border-radius: 16px !important;
     background: #ffffff !important;
-    border: 1px solid rgba(100, 116, 139, 0.30);
 }
 
+#graficaAyuda {
+    max-width: 1120px !important;
+    margin: 12px auto 0 auto !important;
+}
+
+@media (min-width: 1400px) {
+    #graficaCanvas {
+        max-width: 1180px !important;
+        height: 430px !important;
+    }
+}
+
+@media (max-width: 720px) {
+    #graficaCanvas {
+        height: 330px !important;
+    }
+}
+
+
+/* =========================================================
+   FIX: VISUALIZACIÓN INTERNA DE GRÁFICA
+   ========================================================= */
+
+.canvas-visible-card,
+#graficaCanvasWrapper,
+.graph-card {
+    display: block !important;
+    visibility: visible !important;
+}
+
+#graficaCanvasWrapper {
+    margin-top: 18px !important;
+    padding: 18px !important;
+    border-radius: 22px !important;
+    background: rgba(15, 23, 42, 0.76) !important;
+    border: 1px solid rgba(148, 163, 184, 0.22) !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25) !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+}
+
+.graph-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 12px;
+}
+
+.graph-card-header h3 {
+    margin: 0;
+}
+
+.graph-card-header p {
+    margin: 4px 0 0 0;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+#graficaCanvas {
+    display: block !important;
+    margin: 0 auto !important;
+    height: 420px !important;
+    max-height: 420px !important;
+    border-radius: 16px !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(148, 163, 184, 0.28) !important;
+}
+
+#graficaAyuda {
+    max-width: 1160px !important;
+    margin: 12px auto 0 auto !important;
+    padding: 10px 12px !important;
+    border-radius: 12px !important;
+    background: rgba(2, 6, 23, 0.38) !important;
+    color: #cbd5e1 !important;
+    font-size: 13px !important;
+}
+
+body.light-theme #graficaCanvasWrapper {
+    background: rgba(255, 255, 255, 0.82) !important;
+    border-color: rgba(148, 163, 184, 0.30) !important;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08) !important;
+}
+
+body.light-theme #graficaAyuda {
+    background: #f8fafc !important;
+    color: #475569 !important;
+    border: 1px solid rgba(148, 163, 184, 0.25) !important;
+}
+
+@media (max-width: 900px) {
+    #graficaCanvas {
+        height: 340px !important;
+        max-height: 340px !important;
+    }
+}
