@@ -1,18 +1,31 @@
 /*
  * parser.cup
- * Gramática corregida para Turbo X.
+ * Gramática Turbo X con acción JCUP para módulo de gráficas.
  *
- * Corrección aplicada:
- * - Ahora SI puede funcionar con SINO y también sin SINO.
- * - Se agrega precedencia SIN_SINO para evitar conflicto de "dangling else".
+ * Mejora aplicada:
+ * - La regla GRAFICAR ahora ejecuta código de acción dentro de JCUP.
+ * - Cuando se reconoce:
+ *      GRAFICAR f(x) = x ^ 2 + 3;
+ *   el parser guarda:
+ *      funcionGrafica = f
+ *      variableGrafica = x
+ *      expresionGrafica = x ^ 2 + 3
+ *      urlGrafica = URL de Desmos
  */
 
 package com.company.api_compilador;
 
 import java_cup.runtime.Symbol;
+import java.net.URLEncoder;
 
 parser code {:
     public StringBuilder reporte = new StringBuilder();
+
+    public boolean graficaEncontrada = false;
+    public String funcionGrafica = "";
+    public String variableGrafica = "";
+    public String expresionGrafica = "";
+    public String urlGrafica = "";
 
     @Override
     public void syntax_error(Symbol s) {
@@ -35,6 +48,47 @@ parser code {:
         reporte.append(mensaje).append("\\n");
         throw new Exception(mensaje);
     }
+
+    public void registrarGrafica(String nombreFuncion, String variable, String expresion) {
+        this.graficaEncontrada = true;
+        this.funcionGrafica = nombreFuncion;
+        this.variableGrafica = variable;
+        this.expresionGrafica = expresion;
+        this.urlGrafica = generarUrlDesmos(variable, expresion);
+    }
+
+private String generarUrlDesmos(String variable, String expresion) {
+    try {
+        String expresionNormalizada = expresion
+                .replace("**", "^")
+                .replaceAll("\\s+", "");
+
+        if (!"x".equalsIgnoreCase(variable)) {
+            expresionNormalizada = expresionNormalizada.replace(variable, "x");
+        }
+
+        /*
+         * Antes se generaba:
+         * https://www.desmos.com/calculator?expression=...
+         *
+         * Ese formato abre Desmos, pero Desmos no carga automáticamente la
+         * expresión desde ese parámetro.
+         *
+         * Ahora se devuelve una URL local que abre desmos.html.
+         * Ese HTML sí utiliza la API oficial de Desmos y llama:
+         *
+         * calculadora.setExpression({ latex: expresion });
+         */
+        String ecuacion = "y=" + expresionNormalizada;
+        String encoded = URLEncoder.encode(ecuacion, "UTF-8");
+
+        return "/desmos.html?expr=" + encoded;
+
+    } catch (Exception ex) {
+        return "/desmos.html";
+    }
+}
+
 :};
 
 /* =========================
@@ -133,7 +187,7 @@ non terminal graficar;
 non terminal bloque;
 
 non terminal tipo;
-non terminal expr;
+non terminal String expr;
 non terminal valor_caso;
 
 /* =========================
@@ -222,9 +276,6 @@ leer ::=
 
 /* =========================
    SI / SINO
-   Ahora se permite:
-   1. SI (...) ENTONCES { ... }
-   2. SI (...) ENTONCES { ... } SINO { ... }
    ========================= */
 
 si ::=
@@ -278,42 +329,116 @@ valor_caso ::=
 
 /* =========================
    GRÁFICAS
+   Aquí está el código de acción solicitado por la guía.
    ========================= */
 
 graficar ::=
-      GRAFICAR IDENTIFICADOR PARENT_ABRE IDENTIFICADOR PARENT_CIERRA OP_ASIG expr FIN_SENTENCIA
+      GRAFICAR IDENTIFICADOR:nombre PARENT_ABRE IDENTIFICADOR:variable PARENT_CIERRA OP_ASIG expr:expresion FIN_SENTENCIA
+      {:
+          registrarGrafica(nombre, variable, expresion);
+      :}
     ;
 
 /* =========================
    EXPRESIONES GENERALES
+   Ahora expr devuelve un String para que JCUP pueda reconstruir la función.
    ========================= */
 
 expr ::=
-      expr OP_SUMA expr
-    | expr OP_RESTA expr
-    | expr OP_MULT expr
-    | expr OP_DIV expr
-    | expr OP_MOD expr
-    | expr OP_POT expr
+      expr:a OP_SUMA expr:b
+      {:
+          RESULT = a + " + " + b;
+      :}
+    | expr:a OP_RESTA expr:b
+      {:
+          RESULT = a + " - " + b;
+      :}
+    | expr:a OP_MULT expr:b
+      {:
+          RESULT = a + " * " + b;
+      :}
+    | expr:a OP_DIV expr:b
+      {:
+          RESULT = a + " / " + b;
+      :}
+    | expr:a OP_MOD expr:b
+      {:
+          RESULT = a + " % " + b;
+      :}
+    | expr:a OP_POT expr:b
+      {:
+          RESULT = a + " ^ " + b;
+      :}
 
-    | expr MAYOR_QUE expr
-    | expr MENOR_QUE expr
-    | expr MAYOR_IGUAL expr
-    | expr MENOR_IGUAL expr
-    | expr IGUAL_QUE expr
-    | expr DIFERENTE_QUE expr
+    | expr:a MAYOR_QUE expr:b
+      {:
+          RESULT = a + " > " + b;
+      :}
+    | expr:a MENOR_QUE expr:b
+      {:
+          RESULT = a + " < " + b;
+      :}
+    | expr:a MAYOR_IGUAL expr:b
+      {:
+          RESULT = a + " >= " + b;
+      :}
+    | expr:a MENOR_IGUAL expr:b
+      {:
+          RESULT = a + " <= " + b;
+      :}
+    | expr:a IGUAL_QUE expr:b
+      {:
+          RESULT = a + " == " + b;
+      :}
+    | expr:a DIFERENTE_QUE expr:b
+      {:
+          RESULT = a + " != " + b;
+      :}
 
-    | expr OP_Y expr
-    | expr OP_O expr
-    | OP_NO expr
+    | expr:a OP_Y expr:b
+      {:
+          RESULT = a + " Y " + b;
+      :}
+    | expr:a OP_O expr:b
+      {:
+          RESULT = a + " O " + b;
+      :}
+    | OP_NO expr:a
+      {:
+          RESULT = "NO " + a;
+      :}
 
-    | PARENT_ABRE expr PARENT_CIERRA
+    | PARENT_ABRE expr:a PARENT_CIERRA
+      {:
+          RESULT = "(" + a + ")";
+      :}
 
-    | NUMERO_ENTERO
-    | NUMERO_REAL
-    | VALOR_CADENA
-    | VALOR_CARACTER
-    | VALOR_VERDADERO
-    | VALOR_FALSO
-    | IDENTIFICADOR
+    | NUMERO_ENTERO:n
+      {:
+          RESULT = n;
+      :}
+    | NUMERO_REAL:n
+      {:
+          RESULT = n;
+      :}
+    | VALOR_CADENA:c
+      {:
+          RESULT = c;
+      :}
+    | VALOR_CARACTER:c
+      {:
+          RESULT = c;
+      :}
+    | VALOR_VERDADERO:v
+      {:
+          RESULT = v;
+      :}
+    | VALOR_FALSO:v
+      {:
+          RESULT = v;
+      :}
+    | IDENTIFICADOR:id
+      {:
+          RESULT = id;
+      :}
     ;

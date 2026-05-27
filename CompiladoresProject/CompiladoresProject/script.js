@@ -4,10 +4,13 @@
    - /api/analizar
    - /api/sintactico
    - /api/semantico
+   - /api/grafica
 
-   Mejora incluida:
-   - Flujo por fases.
-   - Generador de graficas en canvas para GRAFICAR f(x) = ...
+   Este script:
+   1. Ejecuta el flujo por fases.
+   2. Detiene las fases siguientes si hay errores.
+   3. Obtiene la URL oficial de Desmos desde JCUP mediante /api/grafica.
+   4. Mantiene la gráfica en Canvas como mejora visual adicional.
    ========================================================= */
 
 const API_BASE = "http://localhost:8080";
@@ -35,15 +38,17 @@ const metricSemantica = document.getElementById("metricSemantica");
 const parserStatus = document.getElementById("parserStatus");
 const astOutput = document.getElementById("astOutput");
 const semanticErrors = document.getElementById("semanticErrors");
+
 const funcionDetectada = document.getElementById("funcionDetectada");
 const urlGrafica = document.getElementById("urlGrafica");
 const btnAbrirGrafica = document.getElementById("btnAbrirGrafica");
+
 const serverStatus = document.getElementById("serverStatus");
 
 let ultimaUrlGrafica = "";
 
 /* =========================================================
-   NAVEGACION ENTRE PANELES
+   NAVEGACIÓN ENTRE PANELES
    ========================================================= */
 
 document.querySelectorAll(".menu-item").forEach((button) => {
@@ -109,7 +114,7 @@ btnEjemplo.addEventListener("click", () => {
     fileName.textContent = "ejemplo_turbox.tx";
     actualizarLineas();
     limpiarResultados();
-    log("Codigo de ejemplo cargado.");
+    log("Código de ejemplo cargado.");
 });
 
 btnLimpiar.addEventListener("click", () => {
@@ -122,9 +127,9 @@ btnLimpiar.addEventListener("click", () => {
 btnCopiar.addEventListener("click", async () => {
     try {
         await navigator.clipboard.writeText(codigo.value);
-        log("Codigo copiado al portapapeles.");
+        log("Código copiado al portapapeles.");
     } catch (error) {
-        log("No se pudo copiar el codigo.", "Error");
+        log("No se pudo copiar el código.", "Error");
     }
 });
 
@@ -134,14 +139,14 @@ btnLimpiarConsola.addEventListener("click", () => {
 });
 
 /* =========================================================
-   COMPILACION REAL POR FASES
+   COMPILACIÓN REAL POR FASES
    ========================================================= */
 
 btnCompilar.addEventListener("click", async () => {
     const fuente = codigo.value.trim();
 
     if (!fuente) {
-        log("No hay codigo para compilar.", "Advertencia");
+        log("No hay código para compilar.", "Advertencia");
         return;
     }
 
@@ -150,85 +155,99 @@ btnCompilar.addEventListener("click", async () => {
     btnCompilar.disabled = true;
     btnCompilar.textContent = "Compilando...";
 
-    log("Iniciando compilacion por fases...");
+    log("Iniciando compilación por fases...");
 
     try {
         serverStatus.textContent = "Conectando...";
 
-        log("Ejecutando analisis lexico...");
+        /* FASE 1: ANÁLISIS LÉXICO */
+        log("Ejecutando análisis léxico...");
         const tokens = await analizarLexico(fuente);
+
         renderTokens(tokens);
         renderResumenLexico(tokens);
 
         const totalErroresLexicos = contarErroresLexicos(tokens);
 
         if (totalErroresLexicos > 0) {
-            renderSintacticoNoEjecutado("No se ejecuto el analisis sintactico porque existen errores lexicos.");
-            renderSemanticoNoEjecutado("No se ejecuto el analisis semantico porque existen errores lexicos.");
-            renderGraficaNoEjecutada("No se genero grafica porque existen errores lexicos.");
+            renderSintacticoNoEjecutado("No se ejecutó el análisis sintáctico porque existen errores léxicos.");
+            renderSemanticoNoEjecutado("No se ejecutó el análisis semántico porque existen errores léxicos.");
+            renderGraficaNoEjecutada("No se generó gráfica porque existen errores léxicos.");
 
             serverStatus.textContent = "Conectado";
-            log("Analisis lexico finalizado con " + totalErroresLexicos + " error(es).", "Error");
-            log("Compilacion detenida en la fase lexica.", "Sistema");
+            log("Análisis léxico finalizado con " + totalErroresLexicos + " error(es).", "Error");
+            log("Compilación detenida en la fase léxica.", "Sistema");
             return;
         }
 
-        log("Analisis lexico completado correctamente.");
+        log("Análisis léxico completado correctamente.");
 
-        log("Ejecutando analisis sintactico con JCUP...");
+        /* FASE 2: ANÁLISIS SINTÁCTICO */
+        log("Ejecutando análisis sintáctico con JCUP...");
         const resultadoSintactico = await analizarSintactico(fuente);
+
         renderSintactico(resultadoSintactico);
 
         if (!resultadoSintactico || !resultadoSintactico.correcto) {
-            renderSemanticoNoEjecutado("No se ejecuto el analisis semantico porque existen errores sintacticos.");
-            renderGraficaNoEjecutada("No se genero grafica porque existen errores sintacticos.");
+            renderSemanticoNoEjecutado("No se ejecutó el análisis semántico porque existen errores sintácticos.");
+            renderGraficaNoEjecutada("No se generó gráfica porque existen errores sintácticos.");
 
             serverStatus.textContent = "Conectado";
-            log("Analisis sintactico finalizado con errores.", "Error");
-            log("Compilacion detenida en la fase sintactica.", "Sistema");
+            log("Análisis sintáctico finalizado con errores.", "Error");
+            log("Compilación detenida en la fase sintáctica.", "Sistema");
             return;
         }
 
-        log("Analisis sintactico completado correctamente.");
+        log("Análisis sintáctico completado correctamente.");
 
-        log("Ejecutando analisis semantico...");
+        /* FASE 3: ANÁLISIS SEMÁNTICO */
+        log("Ejecutando análisis semántico...");
         const resultadoSemantico = await analizarSemantico(fuente);
+
         renderSemantico(resultadoSemantico);
 
         if (!resultadoSemantico || !resultadoSemantico.correcto) {
-            renderGraficaNoEjecutada("No se genero grafica porque existen errores semanticos.");
+            renderGraficaNoEjecutada("No se generó gráfica porque existen errores semánticos.");
 
             const cantidadErrores = resultadoSemantico && resultadoSemantico.errores
                 ? resultadoSemantico.errores.length
                 : 0;
 
             serverStatus.textContent = "Conectado";
-            log("Analisis semantico finalizado con " + cantidadErrores + " error(es).", "Error");
-            log("Compilacion finalizada con errores semanticos.", "Sistema");
+            log("Análisis semántico finalizado con " + cantidadErrores + " error(es).", "Error");
+            log("Compilación finalizada con errores semánticos.", "Sistema");
             return;
         }
 
-        log("Analisis semantico completado correctamente.");
+        log("Análisis semántico completado correctamente.");
 
-        renderGraficaDemo(fuente);
+        /* FASE 4: MÓDULO DE GRÁFICAS CON JCUP + DESMOS */
+        log("Procesando módulo de gráficas desde JCUP...");
+        const resultadoGrafica = await procesarGraficaConJCUP(fuente);
+
+        renderGraficaDesdeBackend(resultadoGrafica);
 
         serverStatus.textContent = "Conectado";
-        log("Compilacion finalizada correctamente.");
+        log("Compilación finalizada correctamente.");
 
     } catch (error) {
-        serverStatus.textContent = "Error de conexion";
-        log("No se pudo conectar con el backend. Verifica que Spring Boot este corriendo en localhost:8080.", "Error");
+        serverStatus.textContent = "Error de conexión";
+        log("No se pudo conectar correctamente con el backend. Verifica que Spring Boot esté corriendo en localhost:8080.", "Error");
         log(error.message, "Detalle");
 
-        renderSintacticoNoEjecutado("No se recibio respuesta correcta del backend.");
-        renderSemanticoNoEjecutado("No se recibio respuesta correcta del backend.");
-        renderGraficaNoEjecutada("No se genero grafica por error de conexion.");
+        renderSintacticoNoEjecutado("No se recibió respuesta correcta del backend.");
+        renderSemanticoNoEjecutado("No se recibió respuesta correcta del backend.");
+        renderGraficaNoEjecutada("No se generó gráfica por error de conexión.");
 
     } finally {
         btnCompilar.disabled = false;
-        btnCompilar.textContent = "Compilar codigo";
+        btnCompilar.textContent = "Compilar código";
     }
 });
+
+/* =========================================================
+   PETICIONES AL BACKEND
+   ========================================================= */
 
 async function analizarLexico(fuente) {
     const respuesta = await fetch(`${API_BASE}/api/analizar`, {
@@ -278,8 +297,24 @@ async function analizarSemantico(fuente) {
     return await respuesta.json();
 }
 
+async function procesarGraficaConJCUP(fuente) {
+    const respuesta = await fetch(`${API_BASE}/api/grafica`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ codigo: fuente })
+    });
+
+    if (!respuesta.ok) {
+        throw new Error("Error HTTP en /api/grafica: " + respuesta.status);
+    }
+
+    return await respuesta.json();
+}
+
 /* =========================================================
-   RENDER DE RESULTADOS
+   RENDER DE TOKENS
    ========================================================= */
 
 function renderTokens(tokens) {
@@ -306,11 +341,15 @@ function renderResumenLexico(tokens) {
     metricLexErrors.textContent = errores;
 }
 
+/* =========================================================
+   RENDER SINTÁCTICO
+   ========================================================= */
+
 function renderSintactico(resultado) {
     if (!resultado) {
         metricSintaxis.textContent = "Sin datos";
         parserStatus.className = "result-box waiting";
-        parserStatus.textContent = "No se recibio respuesta del parser.";
+        parserStatus.textContent = "No se recibió respuesta del parser.";
         astOutput.textContent = "AST pendiente...";
         return;
     }
@@ -330,8 +369,8 @@ function renderSintactico(resultado) {
  │   ├── Declaraciones
  │   ├── Instrucciones
  │   ├── Estructuras de control
- │   ├── Evaluacion multiple
- │   └── Grafica
+ │   ├── Evaluación múltiple
+ │   └── Módulo de gráfica
  └── FIN`;
 
     } else {
@@ -339,14 +378,15 @@ function renderSintactico(resultado) {
         parserStatus.className = "result-box error-box";
 
         const errores = resultado.errores || [];
+
         parserStatus.innerHTML = `
-            <strong>Se detectaron errores sintacticos.</strong><br><br>
+            <strong>Se detectaron errores sintácticos.</strong><br><br>
             <ul>
                 ${errores.map((e) => `<li>${escapeHtml(e)}</li>`).join("")}
             </ul>
         `;
 
-        astOutput.textContent = "No se genero AST porque existen errores sintacticos.";
+        astOutput.textContent = "No se generó AST porque existen errores sintácticos.";
     }
 }
 
@@ -354,11 +394,15 @@ function renderSintacticoNoEjecutado(motivo) {
     metricSintaxis.textContent = "No ejecutada";
     parserStatus.className = "result-box waiting";
     parserStatus.innerHTML = `
-        <strong>Analisis sintactico no ejecutado.</strong><br><br>
+        <strong>Análisis sintáctico no ejecutado.</strong><br><br>
         ${escapeHtml(motivo)}
     `;
-    astOutput.textContent = "No se genero AST porque la fase sintactica no fue ejecutada.";
+    astOutput.textContent = "No se generó AST porque la fase sintáctica no fue ejecutada.";
 }
+
+/* =========================================================
+   RENDER SEMÁNTICO
+   ========================================================= */
 
 function renderSemantico(resultado) {
     const simbolos = resultado && resultado.tablaSimbolos ? resultado.tablaSimbolos : [];
@@ -367,7 +411,7 @@ function renderSemantico(resultado) {
     if (!resultado) {
         metricSemantica.textContent = "Sin datos";
         semanticErrors.className = "result-box waiting";
-        semanticErrors.textContent = "No se recibio respuesta del analizador semantico.";
+        semanticErrors.textContent = "No se recibió respuesta del analizador semántico.";
         return;
     }
 
@@ -375,7 +419,7 @@ function renderSemantico(resultado) {
         metricSemantica.textContent = "Correcta";
         semanticErrors.className = "result-box success-box";
         semanticErrors.innerHTML = `
-            <strong>Analisis semantico correcto.</strong><br><br>
+            <strong>Análisis semántico correcto.</strong><br><br>
             ${escapeHtml(resultado.mensaje)}
         `;
     } else {
@@ -383,12 +427,13 @@ function renderSemantico(resultado) {
         semanticErrors.className = "result-box error-box";
 
         const errores = resultado.errores || [];
+
         semanticErrors.innerHTML = `
             <strong>${escapeHtml(resultado.mensaje)}</strong><br><br>
             <ul>
                 ${errores.map((error) => `
                     <li>
-                        Linea ${escapeHtml(error.linea)} -
+                        Línea ${escapeHtml(error.linea)} -
                         <strong>${escapeHtml(error.lexema)}</strong>:
                         ${escapeHtml(error.descripcion)}
                     </li>
@@ -400,13 +445,13 @@ function renderSemantico(resultado) {
 
 function renderTablaSimbolos(simbolos) {
     if (!simbolos || simbolos.length === 0) {
-        tablaSimbolos.innerHTML = '<tr><td colspan="4" class="empty-row">No se encontraron simbolos declarados.</td></tr>';
+        tablaSimbolos.innerHTML = '<tr><td colspan="4" class="empty-row">No se encontraron símbolos declarados.</td></tr>';
         return;
     }
 
     tablaSimbolos.innerHTML = simbolos.map((simbolo) => {
         const estado = simbolo.inicializado ? "Inicializada" : "Declarada";
-        const valor = `${simbolo.categoria || "VARIABLE"} | linea ${simbolo.lineaDeclaracion}`;
+        const valor = `${simbolo.categoria || "VARIABLE"} | línea ${simbolo.lineaDeclaracion}`;
 
         return `
             <tr>
@@ -421,43 +466,49 @@ function renderTablaSimbolos(simbolos) {
 
 function renderSemanticoNoEjecutado(motivo) {
     metricSemantica.textContent = "No ejecutada";
-    tablaSimbolos.innerHTML = '<tr><td colspan="4" class="empty-row">No se genero tabla de simbolos porque la fase semantica no fue ejecutada.</td></tr>';
+    tablaSimbolos.innerHTML = '<tr><td colspan="4" class="empty-row">No se generó tabla de símbolos porque la fase semántica no fue ejecutada.</td></tr>';
     semanticErrors.className = "result-box waiting";
     semanticErrors.innerHTML = `
-        <strong>Analisis semantico no ejecutado.</strong><br><br>
+        <strong>Análisis semántico no ejecutado.</strong><br><br>
         ${escapeHtml(motivo)}
     `;
 }
 
 /* =========================================================
-   MODULO DE GRAFICAS
+   MÓDULO DE GRÁFICAS
+   URL OFICIAL DESDE JCUP + VISUALIZACIÓN CANVAS
    ========================================================= */
 
-function renderGraficaDemo(fuente) {
-    const match = fuente.match(/\bGRAFICAR\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(\s*x\s*\)\s*=\s*([^;]+);/i);
-
-    if (!match) {
-        funcionDetectada.textContent = "f(x) = pendiente";
-        urlGrafica.textContent = "No se encontro una sentencia GRAFICAR.";
-        btnAbrirGrafica.disabled = true;
-        ultimaUrlGrafica = "";
-        limpiarCanvasGrafica("No se encontro una instruccion GRAFICAR para dibujar.");
+function renderGraficaDesdeBackend(resultado) {
+    if (!resultado) {
+        renderGraficaNoEjecutada("No se recibió respuesta del módulo de gráficas.");
         return;
     }
 
-    const nombreFuncion = match[1];
-    const expresion = match[2].trim();
+    if (!resultado.correcta) {
+        renderGraficaNoEjecutada(resultado.mensaje || "No se pudo procesar la gráfica.");
+        return;
+    }
 
-    funcionDetectada.textContent = `${nombreFuncion}(x) = ${expresion}`;
+    if (!resultado.graficaEncontrada) {
+        funcionDetectada.textContent = "f(x) = pendiente";
+        urlGrafica.textContent = resultado.mensaje || "No se encontró una sentencia GRAFICAR.";
+        btnAbrirGrafica.disabled = true;
+        ultimaUrlGrafica = "";
+        limpiarCanvasGrafica("No se encontró una instrucción GRAFICAR para dibujar.");
+        log("No se encontró una instrucción GRAFICAR en el programa.");
+        return;
+    }
 
-    const expresionDesmos = encodeURIComponent(`y=${expresion.replace(/\*\*/g, "^")}`);
-    ultimaUrlGrafica = `https://www.desmos.com/calculator?expression=${expresionDesmos}`;
+    funcionDetectada.textContent = `${resultado.funcion}(${resultado.variable}) = ${resultado.expresion}`;
 
-    urlGrafica.textContent = "Grafica generada dentro del sistema. Tambien puedes abrirla externamente.";
-    btnAbrirGrafica.disabled = false;
+    ultimaUrlGrafica = resultado.url || "";
+    urlGrafica.textContent = resultado.url || "URL no disponible.";
+    btnAbrirGrafica.disabled = !ultimaUrlGrafica;
 
-    dibujarGraficaEnCanvas(expresion);
-    log("Grafica generada para la funcion: " + nombreFuncion + "(x) = " + expresion);
+    dibujarGraficaEnCanvas(resultado.expresion);
+
+    log("URL de gráfica generada por JCUP: " + resultado.url);
 }
 
 function renderGraficaNoEjecutada(motivo) {
@@ -486,7 +537,7 @@ function asegurarCanvasGrafica() {
     wrapper.style.border = "1px solid rgba(148, 163, 184, 0.25)";
 
     const titulo = document.createElement("h3");
-    titulo.textContent = "Vista de la grafica";
+    titulo.textContent = "Vista de la gráfica";
     titulo.style.margin = "0 0 10px 0";
 
     canvas = document.createElement("canvas");
@@ -505,7 +556,7 @@ function asegurarCanvasGrafica() {
     ayuda.style.margin = "10px 0 0 0";
     ayuda.style.fontSize = "13px";
     ayuda.style.opacity = "0.85";
-    ayuda.textContent = "Rango utilizado: x de -10 a 10. La escala vertical se ajusta automaticamente.";
+    ayuda.textContent = "Rango utilizado: x de -10 a 10. La escala vertical se ajusta automáticamente.";
 
     wrapper.appendChild(titulo);
     wrapper.appendChild(canvas);
@@ -575,7 +626,7 @@ function dibujarGraficaEnCanvas(expresionTurboX) {
     try {
         funcion = crearFuncionMatematica(expresionTurboX);
     } catch (error) {
-        limpiarCanvasGrafica("No se pudo interpretar la funcion: " + error.message);
+        limpiarCanvasGrafica("No se pudo interpretar la función: " + error.message);
         return;
     }
 
@@ -597,7 +648,7 @@ function dibujarGraficaEnCanvas(expresionTurboX) {
     }
 
     if (puntos.length < 2) {
-        limpiarCanvasGrafica("No hay suficientes puntos validos para dibujar la grafica.");
+        limpiarCanvasGrafica("No hay suficientes puntos válidos para dibujar la gráfica.");
         return;
     }
 
@@ -630,6 +681,7 @@ function dibujarGraficaEnCanvas(expresionTurboX) {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
 
+    /* Cuadrícula */
     ctx.strokeStyle = "#e2e8f0";
     ctx.lineWidth = 1;
 
@@ -652,6 +704,7 @@ function dibujarGraficaEnCanvas(expresionTurboX) {
         ctx.stroke();
     }
 
+    /* Ejes */
     ctx.strokeStyle = "#475569";
     ctx.lineWidth = 2;
 
@@ -671,6 +724,7 @@ function dibujarGraficaEnCanvas(expresionTurboX) {
         ctx.stroke();
     }
 
+    /* Etiquetas */
     ctx.fillStyle = "#334155";
     ctx.font = "13px Arial";
     ctx.textAlign = "center";
@@ -691,6 +745,7 @@ function dibujarGraficaEnCanvas(expresionTurboX) {
         }
     });
 
+    /* Curva */
     ctx.strokeStyle = "#2563eb";
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -731,6 +786,7 @@ function dibujarGraficaEnCanvas(expresionTurboX) {
 
     ctx.stroke();
 
+    /* Título dentro del canvas */
     ctx.fillStyle = "#0f172a";
     ctx.font = "bold 16px Arial";
     ctx.textAlign = "left";
@@ -745,8 +801,18 @@ function dibujarGraficaEnCanvas(expresionTurboX) {
 function crearFuncionMatematica(expresionTurboX) {
     let expr = expresionTurboX.trim();
 
+    /*
+       Se permite una expresión matemática sencilla.
+       Esto evita ejecutar texto peligroso con Function.
+       Permitido:
+       - números
+       - x o X
+       - operadores + - * / % ^
+       - paréntesis
+       - punto decimal o coma decimal
+    */
     if (!/^[0-9xX+\-*/%^().,\s]+$/.test(expr)) {
-        throw new Error("solo se permiten numeros, x, parentesis y operadores + - * / % ^");
+        throw new Error("solo se permiten números, x, paréntesis y operadores + - * / % ^");
     }
 
     expr = expr.replaceAll(",", ".");
@@ -796,11 +862,18 @@ function formatearNumero(valor) {
 }
 
 btnAbrirGrafica.addEventListener("click", () => {
-    if (ultimaUrlGrafica) {
-        window.open(ultimaUrlGrafica, "_blank");
+    if (!ultimaUrlGrafica) {
+        return;
     }
-});
 
+    let urlFinal = ultimaUrlGrafica;
+
+    if (urlFinal.startsWith("/")) {
+        urlFinal = API_BASE + urlFinal;
+    }
+
+    window.open(urlFinal, "_blank");
+});
 /* =========================================================
    UTILIDADES
    ========================================================= */
@@ -825,8 +898,8 @@ function log(mensaje, tipo = "Sistema") {
 }
 
 function limpiarResultados(limpiarConsola = true) {
-    tablaTokens.innerHTML = '<tr><td colspan="5" class="empty-row">Presiona “Compilar codigo” para visualizar los tokens.</td></tr>';
-    tablaSimbolos.innerHTML = '<tr><td colspan="4" class="empty-row">Sin datos semanticos todavia.</td></tr>';
+    tablaTokens.innerHTML = '<tr><td colspan="5" class="empty-row">Presiona “Compilar código” para visualizar los tokens.</td></tr>';
+    tablaSimbolos.innerHTML = '<tr><td colspan="4" class="empty-row">Sin datos semánticos todavía.</td></tr>';
 
     parserStatus.className = "result-box waiting";
     parserStatus.textContent = "Pendiente de ejecutar JCUP.";
@@ -835,12 +908,13 @@ function limpiarResultados(limpiarConsola = true) {
     semanticErrors.textContent = "Pendiente de validar tipos con Java.";
 
     astOutput.textContent = "AST pendiente...";
+
     funcionDetectada.textContent = "f(x) = pendiente";
     urlGrafica.textContent = "No se ha generado una URL.";
     btnAbrirGrafica.disabled = true;
     ultimaUrlGrafica = "";
 
-    limpiarCanvasGrafica("Grafica pendiente. Compila un programa con GRAFICAR para visualizarla.");
+    limpiarCanvasGrafica("Gráfica pendiente. Compila un programa con GRAFICAR para visualizarla.");
 
     metricTokens.textContent = "0";
     metricLexErrors.textContent = "0";
@@ -865,7 +939,7 @@ function ejemploTurboX() {
     return `PROGRAMA SistemaNotas
 INICIO
 
-    // Declaracion de variables
+    // Declaración de variables
     ENTERO edad = 18;
     REAL promedio = 87.50;
     CADENA nombre = "Carlos";
@@ -888,11 +962,11 @@ INICIO
 
     EVALUAR (edad) {
         CASO 18:
-            IMPRIMIR("Tiene 18 anos");
+            IMPRIMIR("Tiene 18 años");
             PARAR;
 
         CASO 25:
-            IMPRIMIR("Tiene 25 anos");
+            IMPRIMIR("Tiene 25 años");
             PARAR;
 
         OTRO:
@@ -905,7 +979,10 @@ INICIO
 FIN`;
 }
 
-/* Inicializacion */
+/* =========================================================
+   INICIALIZACIÓN
+   ========================================================= */
+
 actualizarLineas();
-limpiarCanvasGrafica("Grafica pendiente. Compila un programa con GRAFICAR para visualizarla.");
+limpiarCanvasGrafica("Gráfica pendiente. Compila un programa con GRAFICAR para visualizarla.");
 log("Interfaz lista. Backend esperado en http://localhost:8080.");

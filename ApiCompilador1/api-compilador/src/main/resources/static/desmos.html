@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gráfica Turbo X - Desmos API</title>
+
+    <!--
+        API de Desmos.
+        Para pruebas académicas se usa una API key demo documentada por Desmos.
+        Para producción, reemplazar por una API key propia de Desmos.
+    -->
+    <script src="https://www.desmos.com/api/v1.12/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: #e5e7eb;
+            overflow: hidden;
+        }
+
+        header {
+            height: 92px;
+            padding: 18px 24px;
+            background: #111827;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        header p {
+            margin: 8px 0 0 0;
+            font-size: 15px;
+            color: #cbd5e1;
+        }
+
+        #calculator {
+            width: 100vw;
+            height: calc(100vh - 92px);
+            background: #ffffff;
+        }
+
+        #errorBox {
+            display: none;
+            padding: 18px 24px;
+            margin: 20px;
+            border-radius: 12px;
+            border: 1px solid #ef4444;
+            background: rgba(127, 29, 29, 0.35);
+            color: #fecaca;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Visualización de gráfica con Desmos API</h1>
+    <p id="expresionTexto">Cargando expresión...</p>
+</header>
+
+<div id="errorBox"></div>
+<div id="calculator"></div>
+
+<script>
+    function obtenerParametro(nombre) {
+        const params = new URLSearchParams(window.location.search);
+        return params.get(nombre);
+    }
+
+    function mostrarError(mensaje) {
+        const errorBox = document.getElementById("errorBox");
+        const calculator = document.getElementById("calculator");
+
+        errorBox.style.display = "block";
+        errorBox.textContent = mensaje;
+        calculator.style.display = "none";
+    }
+
+    function convertirTurboXALatex(expresion) {
+        if (!expresion || expresion.trim() === "") {
+            return "y=x^2+3";
+        }
+
+        let expr = expresion.trim();
+
+        // Por si llega codificado con espacios como y=x+%5E...
+        expr = expr.replace(/\s+/g, "");
+
+        // Desmos acepta ^ como potencia.
+        // Normalizamos ** por si en algún momento JavaScript lo envía así.
+        expr = expr.replaceAll("**", "^");
+
+        // Si por alguna razón llega solo x^2+3, le agregamos y=
+        if (!expr.startsWith("y=") && !expr.startsWith("Y=")) {
+            expr = "y=" + expr;
+        }
+
+        return expr;
+    }
+
+    window.addEventListener("load", function () {
+        const expresionUrl = obtenerParametro("expr");
+        const expresionLatex = convertirTurboXALatex(expresionUrl);
+
+        document.getElementById("expresionTexto").textContent = "Expresión: " + expresionLatex;
+
+        if (typeof Desmos === "undefined") {
+            mostrarError(
+                "No se pudo cargar la API de Desmos. Verifica tu conexión a Internet o la API key usada en desmos.html."
+            );
+            return;
+        }
+
+        try {
+            const elemento = document.getElementById("calculator");
+
+            const calculadora = Desmos.GraphingCalculator(elemento, {
+                expressions: true,
+                keypad: true,
+                settingsMenu: true,
+                zoomButtons: true,
+                expressionsCollapsed: false
+            });
+
+            calculadora.setExpression({
+                id: "grafica_turbo_x",
+                latex: expresionLatex
+            });
+
+            calculadora.setMathBounds({
+                left: -10,
+                right: 10,
+                bottom: -10,
+                top: 20
+            });
+
+            // Forzamos el resize por si el navegador calcula tarde el tamaño del div.
+            setTimeout(function () {
+                calculadora.resize();
+            }, 300);
+
+        } catch (error) {
+            mostrarError("Ocurrió un error al crear la calculadora Desmos: " + error.message);
+        }
+    });
+</script>
+
+</body>
+</html>
