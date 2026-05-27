@@ -20,6 +20,7 @@ const lineNumbers = document.getElementById("lineNumbers");
 const archivoTxt = document.getElementById("archivoTxt");
 const btnArchivo = document.getElementById("btnArchivo");
 const btnEjemplo = document.getElementById("btnEjemplo");
+const btnTema = document.getElementById("btnTema");
 const btnCompilar = document.getElementById("btnCompilar");
 const btnLimpiar = document.getElementById("btnLimpiar");
 const btnCopiar = document.getElementById("btnCopiar");
@@ -66,6 +67,42 @@ document.querySelectorAll(".menu-item").forEach((button) => {
         }
     });
 });
+
+
+/* =========================================================
+   CAMBIO DE TEMA CLARO / OSCURO
+   ========================================================= */
+
+function inicializarTema() {
+    const temaGuardado = localStorage.getItem("turbox_tema") || "oscuro";
+    aplicarTema(temaGuardado, false);
+}
+
+function aplicarTema(tema, registrarLog = true) {
+    const esClaro = tema === "claro";
+
+    document.body.classList.toggle("light-theme", esClaro);
+
+    if (btnTema) {
+        btnTema.textContent = esClaro ? "☀️ Claro" : "🌙 Oscuro";
+        btnTema.title = esClaro ? "Cambiar a tema oscuro" : "Cambiar a tema claro";
+    }
+
+    localStorage.setItem("turbox_tema", tema);
+
+    if (registrarLog && typeof log === "function") {
+        log("Tema cambiado a modo " + tema + ".");
+    }
+}
+
+if (btnTema) {
+    btnTema.addEventListener("click", () => {
+        const temaActual = document.body.classList.contains("light-theme") ? "claro" : "oscuro";
+        const nuevoTema = temaActual === "claro" ? "oscuro" : "claro";
+
+        aplicarTema(nuevoTema);
+    });
+}
 
 /* =========================================================
    EDITOR Y ARCHIVOS
@@ -984,5 +1021,6 @@ FIN`;
    ========================================================= */
 
 actualizarLineas();
+inicializarTema();
 limpiarCanvasGrafica("Gráfica pendiente. Compila un programa con GRAFICAR para visualizarla.");
 log("Interfaz lista. Backend esperado en http://localhost:8080.");
