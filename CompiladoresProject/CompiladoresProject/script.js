@@ -4,6 +4,10 @@
    - /api/analizar
    - /api/sintactico
    - /api/semantico
+
+   Mejora incluida:
+   - Flujo por fases.
+   - Generador de graficas en canvas para GRAFICAR f(x) = ...
    ========================================================= */
 
 const API_BASE = "http://localhost:8080";
@@ -39,7 +43,7 @@ const serverStatus = document.getElementById("serverStatus");
 let ultimaUrlGrafica = "";
 
 /* =========================================================
-   NAVEGACIÓN ENTRE PANELES
+   NAVEGACION ENTRE PANELES
    ========================================================= */
 
 document.querySelectorAll(".menu-item").forEach((button) => {
@@ -50,7 +54,11 @@ document.querySelectorAll(".menu-item").forEach((button) => {
         button.classList.add("active");
 
         const panelId = button.dataset.panel;
-        document.getElementById(panelId).classList.add("active-panel");
+        const panel = document.getElementById(panelId);
+
+        if (panel) {
+            panel.classList.add("active-panel");
+        }
     });
 });
 
@@ -126,7 +134,7 @@ btnLimpiarConsola.addEventListener("click", () => {
 });
 
 /* =========================================================
-   COMPILACIÓN REAL POR FASES
+   COMPILACION REAL POR FASES
    ========================================================= */
 
 btnCompilar.addEventListener("click", async () => {
@@ -147,7 +155,6 @@ btnCompilar.addEventListener("click", async () => {
     try {
         serverStatus.textContent = "Conectando...";
 
-        // FASE 1: ANALISIS LEXICO
         log("Ejecutando analisis lexico...");
         const tokens = await analizarLexico(fuente);
         renderTokens(tokens);
@@ -168,7 +175,6 @@ btnCompilar.addEventListener("click", async () => {
 
         log("Analisis lexico completado correctamente.");
 
-        // FASE 2: ANALISIS SINTACTICO
         log("Ejecutando analisis sintactico con JCUP...");
         const resultadoSintactico = await analizarSintactico(fuente);
         renderSintactico(resultadoSintactico);
@@ -185,7 +191,6 @@ btnCompilar.addEventListener("click", async () => {
 
         log("Analisis sintactico completado correctamente.");
 
-        // FASE 3: ANALISIS SEMANTICO
         log("Ejecutando analisis semantico...");
         const resultadoSemantico = await analizarSemantico(fuente);
         renderSemantico(resultadoSemantico);
@@ -205,7 +210,6 @@ btnCompilar.addEventListener("click", async () => {
 
         log("Analisis semantico completado correctamente.");
 
-        // FASE 4: GRAFICAS
         renderGraficaDemo(fuente);
 
         serverStatus.textContent = "Conectado";
@@ -222,7 +226,7 @@ btnCompilar.addEventListener("click", async () => {
 
     } finally {
         btnCompilar.disabled = false;
-        btnCompilar.textContent = "Compilar código";
+        btnCompilar.textContent = "Compilar codigo";
     }
 });
 
@@ -425,6 +429,10 @@ function renderSemanticoNoEjecutado(motivo) {
     `;
 }
 
+/* =========================================================
+   MODULO DE GRAFICAS
+   ========================================================= */
+
 function renderGraficaDemo(fuente) {
     const match = fuente.match(/\bGRAFICAR\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(\s*x\s*\)\s*=\s*([^;]+);/i);
 
@@ -433,6 +441,7 @@ function renderGraficaDemo(fuente) {
         urlGrafica.textContent = "No se encontro una sentencia GRAFICAR.";
         btnAbrirGrafica.disabled = true;
         ultimaUrlGrafica = "";
+        limpiarCanvasGrafica("No se encontro una instruccion GRAFICAR para dibujar.");
         return;
     }
 
@@ -444,8 +453,11 @@ function renderGraficaDemo(fuente) {
     const expresionDesmos = encodeURIComponent(`y=${expresion.replace(/\*\*/g, "^")}`);
     ultimaUrlGrafica = `https://www.desmos.com/calculator?expression=${expresionDesmos}`;
 
-    urlGrafica.textContent = ultimaUrlGrafica;
+    urlGrafica.textContent = "Grafica generada dentro del sistema. Tambien puedes abrirla externamente.";
     btnAbrirGrafica.disabled = false;
+
+    dibujarGraficaEnCanvas(expresion);
+    log("Grafica generada para la funcion: " + nombreFuncion + "(x) = " + expresion);
 }
 
 function renderGraficaNoEjecutada(motivo) {
@@ -453,6 +465,334 @@ function renderGraficaNoEjecutada(motivo) {
     urlGrafica.textContent = motivo;
     btnAbrirGrafica.disabled = true;
     ultimaUrlGrafica = "";
+    limpiarCanvasGrafica(motivo);
+}
+
+function asegurarCanvasGrafica() {
+    let canvas = document.getElementById("graficaCanvas");
+
+    if (canvas) {
+        return canvas;
+    }
+
+    const contenedorBase = encontrarContenedorGrafica();
+
+    const wrapper = document.createElement("div");
+    wrapper.id = "graficaCanvasWrapper";
+    wrapper.style.marginTop = "18px";
+    wrapper.style.padding = "14px";
+    wrapper.style.borderRadius = "14px";
+    wrapper.style.background = "rgba(15, 23, 42, 0.65)";
+    wrapper.style.border = "1px solid rgba(148, 163, 184, 0.25)";
+
+    const titulo = document.createElement("h3");
+    titulo.textContent = "Vista de la grafica";
+    titulo.style.margin = "0 0 10px 0";
+
+    canvas = document.createElement("canvas");
+    canvas.id = "graficaCanvas";
+    canvas.width = 900;
+    canvas.height = 420;
+    canvas.style.width = "100%";
+    canvas.style.maxWidth = "100%";
+    canvas.style.height = "420px";
+    canvas.style.display = "block";
+    canvas.style.borderRadius = "12px";
+    canvas.style.background = "#ffffff";
+
+    const ayuda = document.createElement("p");
+    ayuda.id = "graficaAyuda";
+    ayuda.style.margin = "10px 0 0 0";
+    ayuda.style.fontSize = "13px";
+    ayuda.style.opacity = "0.85";
+    ayuda.textContent = "Rango utilizado: x de -10 a 10. La escala vertical se ajusta automaticamente.";
+
+    wrapper.appendChild(titulo);
+    wrapper.appendChild(canvas);
+    wrapper.appendChild(ayuda);
+
+    contenedorBase.appendChild(wrapper);
+
+    return canvas;
+}
+
+function encontrarContenedorGrafica() {
+    const posiblesIds = [
+        "panelGraficas",
+        "graficas",
+        "grafica",
+        "graphicsPanel",
+        "panel-graficas"
+    ];
+
+    for (const id of posiblesIds) {
+        const panel = document.getElementById(id);
+        if (panel) {
+            return panel;
+        }
+    }
+
+    if (urlGrafica && urlGrafica.parentElement) {
+        return urlGrafica.parentElement;
+    }
+
+    return document.body;
+}
+
+function limpiarCanvasGrafica(mensaje) {
+    const canvas = asegurarCanvasGrafica();
+    const ctx = canvas.getContext("2d");
+    const width = canvas.width;
+    const height = canvas.height;
+
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.fillStyle = "#334155";
+    ctx.font = "18px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(mensaje, width / 2, height / 2);
+
+    const ayuda = document.getElementById("graficaAyuda");
+    if (ayuda) {
+        ayuda.textContent = mensaje;
+    }
+}
+
+function dibujarGraficaEnCanvas(expresionTurboX) {
+    const canvas = asegurarCanvasGrafica();
+    const ctx = canvas.getContext("2d");
+
+    const width = canvas.width;
+    const height = canvas.height;
+
+    const xMin = -10;
+    const xMax = 10;
+
+    let funcion;
+
+    try {
+        funcion = crearFuncionMatematica(expresionTurboX);
+    } catch (error) {
+        limpiarCanvasGrafica("No se pudo interpretar la funcion: " + error.message);
+        return;
+    }
+
+    const puntos = [];
+
+    for (let px = 0; px <= width; px++) {
+        const x = xMin + (px / width) * (xMax - xMin);
+        let y;
+
+        try {
+            y = funcion(x);
+        } catch (error) {
+            y = NaN;
+        }
+
+        if (Number.isFinite(y) && Math.abs(y) < 1000000) {
+            puntos.push({ x, y });
+        }
+    }
+
+    if (puntos.length < 2) {
+        limpiarCanvasGrafica("No hay suficientes puntos validos para dibujar la grafica.");
+        return;
+    }
+
+    let yMin = Math.min(...puntos.map((p) => p.y));
+    let yMax = Math.max(...puntos.map((p) => p.y));
+
+    if (yMin === yMax) {
+        yMin -= 5;
+        yMax += 5;
+    } else {
+        const margen = (yMax - yMin) * 0.15;
+        yMin -= margen;
+        yMax += margen;
+    }
+
+    if (yMin > -1 && yMax < 1) {
+        yMin = -1;
+        yMax = 1;
+    }
+
+    function mapX(x) {
+        return ((x - xMin) / (xMax - xMin)) * width;
+    }
+
+    function mapY(y) {
+        return height - ((y - yMin) / (yMax - yMin)) * height;
+    }
+
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.strokeStyle = "#e2e8f0";
+    ctx.lineWidth = 1;
+
+    for (let gx = -10; gx <= 10; gx++) {
+        const px = mapX(gx);
+        ctx.beginPath();
+        ctx.moveTo(px, 0);
+        ctx.lineTo(px, height);
+        ctx.stroke();
+    }
+
+    const pasoY = calcularPasoY(yMin, yMax);
+    const inicioY = Math.ceil(yMin / pasoY) * pasoY;
+
+    for (let gy = inicioY; gy <= yMax; gy += pasoY) {
+        const py = mapY(gy);
+        ctx.beginPath();
+        ctx.moveTo(0, py);
+        ctx.lineTo(width, py);
+        ctx.stroke();
+    }
+
+    ctx.strokeStyle = "#475569";
+    ctx.lineWidth = 2;
+
+    if (xMin <= 0 && xMax >= 0) {
+        const ejeY = mapX(0);
+        ctx.beginPath();
+        ctx.moveTo(ejeY, 0);
+        ctx.lineTo(ejeY, height);
+        ctx.stroke();
+    }
+
+    if (yMin <= 0 && yMax >= 0) {
+        const ejeX = mapY(0);
+        ctx.beginPath();
+        ctx.moveTo(0, ejeX);
+        ctx.lineTo(width, ejeX);
+        ctx.stroke();
+    }
+
+    ctx.fillStyle = "#334155";
+    ctx.font = "13px Arial";
+    ctx.textAlign = "center";
+
+    for (let gx = -10; gx <= 10; gx += 2) {
+        const px = mapX(gx);
+        const py = yMin <= 0 && yMax >= 0 ? mapY(0) + 18 : height - 10;
+        ctx.fillText(String(gx), px, py);
+    }
+
+    ctx.textAlign = "left";
+    const etiquetasY = generarEtiquetasY(yMin, yMax, pasoY);
+
+    etiquetasY.forEach((valor) => {
+        const py = mapY(valor);
+        if (py > 12 && py < height - 5) {
+            ctx.fillText(formatearNumero(valor), 8, py - 4);
+        }
+    });
+
+    ctx.strokeStyle = "#2563eb";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+
+    let inicio = true;
+
+    for (let px = 0; px <= width; px++) {
+        const x = xMin + (px / width) * (xMax - xMin);
+        let y;
+
+        try {
+            y = funcion(x);
+        } catch (error) {
+            inicio = true;
+            continue;
+        }
+
+        if (!Number.isFinite(y) || Math.abs(y) > 1000000) {
+            inicio = true;
+            continue;
+        }
+
+        const canvasX = mapX(x);
+        const canvasY = mapY(y);
+
+        if (canvasY < -height * 2 || canvasY > height * 3) {
+            inicio = true;
+            continue;
+        }
+
+        if (inicio) {
+            ctx.moveTo(canvasX, canvasY);
+            inicio = false;
+        } else {
+            ctx.lineTo(canvasX, canvasY);
+        }
+    }
+
+    ctx.stroke();
+
+    ctx.fillStyle = "#0f172a";
+    ctx.font = "bold 16px Arial";
+    ctx.textAlign = "left";
+    ctx.fillText("f(x) = " + expresionTurboX, 16, 26);
+
+    const ayuda = document.getElementById("graficaAyuda");
+    if (ayuda) {
+        ayuda.textContent = `Rango utilizado: x de ${xMin} a ${xMax}. Escala vertical aproximada: y de ${formatearNumero(yMin)} a ${formatearNumero(yMax)}.`;
+    }
+}
+
+function crearFuncionMatematica(expresionTurboX) {
+    let expr = expresionTurboX.trim();
+
+    if (!/^[0-9xX+\-*/%^().,\s]+$/.test(expr)) {
+        throw new Error("solo se permiten numeros, x, parentesis y operadores + - * / % ^");
+    }
+
+    expr = expr.replaceAll(",", ".");
+    expr = expr.replaceAll("^", "**");
+    expr = expr.replace(/\bX\b/g, "x");
+
+    return new Function("x", `
+        const resultado = ${expr};
+        return Number(resultado);
+    `);
+}
+
+function calcularPasoY(yMin, yMax) {
+    const rango = Math.abs(yMax - yMin);
+
+    if (rango <= 5) return 1;
+    if (rango <= 20) return 2;
+    if (rango <= 50) return 5;
+    if (rango <= 100) return 10;
+    if (rango <= 500) return 50;
+    if (rango <= 1000) return 100;
+
+    return Math.pow(10, Math.floor(Math.log10(rango)) - 1);
+}
+
+function generarEtiquetasY(yMin, yMax, pasoY) {
+    const etiquetas = [];
+    const inicio = Math.ceil(yMin / pasoY) * pasoY;
+
+    for (let y = inicio; y <= yMax; y += pasoY) {
+        etiquetas.push(y);
+    }
+
+    return etiquetas;
+}
+
+function formatearNumero(valor) {
+    if (Math.abs(valor) >= 1000) {
+        return valor.toFixed(0);
+    }
+
+    if (Math.abs(valor) >= 10) {
+        return valor.toFixed(1).replace(/\.0$/, "");
+    }
+
+    return valor.toFixed(2).replace(/\.00$/, "").replace(/0$/, "");
 }
 
 btnAbrirGrafica.addEventListener("click", () => {
@@ -499,6 +839,8 @@ function limpiarResultados(limpiarConsola = true) {
     urlGrafica.textContent = "No se ha generado una URL.";
     btnAbrirGrafica.disabled = true;
     ultimaUrlGrafica = "";
+
+    limpiarCanvasGrafica("Grafica pendiente. Compila un programa con GRAFICAR para visualizarla.");
 
     metricTokens.textContent = "0";
     metricLexErrors.textContent = "0";
@@ -565,4 +907,5 @@ FIN`;
 
 /* Inicializacion */
 actualizarLineas();
+limpiarCanvasGrafica("Grafica pendiente. Compila un programa con GRAFICAR para visualizarla.");
 log("Interfaz lista. Backend esperado en http://localhost:8080.");
