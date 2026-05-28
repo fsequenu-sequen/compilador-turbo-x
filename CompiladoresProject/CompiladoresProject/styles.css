@@ -1710,3 +1710,564 @@ body.light-theme #graficaAyuda {
         max-height: 340px !important;
     }
 }
+
+
+/* =========================================================
+   MÓDULO DE EJECUCIÓN
+   ========================================================= */
+
+.btn.success {
+    background: linear-gradient(135deg, #16a34a, #22c55e);
+    color: #ffffff;
+    border-color: transparent;
+    box-shadow: 0 10px 28px rgba(34, 197, 94, 0.18);
+}
+
+.btn.success:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 32px rgba(34, 197, 94, 0.24);
+}
+
+.btn.small {
+    padding: 8px 12px;
+    font-size: 13px;
+}
+
+.execution-grid {
+    display: grid;
+    grid-template-columns: minmax(300px, 0.85fr) minmax(420px, 1.15fr);
+    gap: 16px;
+    align-items: stretch;
+}
+
+.execution-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 12px;
+}
+
+.execution-card-header h4 {
+    margin: 0;
+}
+
+.execution-card-header p {
+    margin: 5px 0 0 0;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.execution-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.runtime-input {
+    width: 100%;
+    min-height: 230px;
+    resize: vertical;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px;
+    background: rgba(2, 6, 23, 0.56);
+    color: var(--text-main);
+    outline: none;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.runtime-input:focus {
+    border-color: rgba(53, 194, 255, 0.52);
+    box-shadow: 0 0 0 3px rgba(53, 194, 255, 0.10);
+}
+
+.runtime-output {
+    min-height: 300px;
+    max-height: 460px;
+    overflow: auto;
+    margin: 0;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    background: rgba(2, 6, 23, 0.72);
+    color: #dbeafe;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 14px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+}
+
+.runtime-help {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(53, 194, 255, 0.08);
+    border: 1px solid rgba(53, 194, 255, 0.16);
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.runtime-vars-card {
+    margin-top: 16px;
+}
+
+body.light-theme .btn.success {
+    color: #ffffff;
+}
+
+body.light-theme .runtime-input,
+body.light-theme .runtime-output {
+    background: #ffffff;
+    color: #0f172a;
+    border-color: var(--border);
+}
+
+body.light-theme .runtime-help {
+    background: rgba(37, 99, 235, 0.07);
+    border-color: rgba(37, 99, 235, 0.16);
+    color: #475569;
+}
+
+@media (max-width: 1100px) {
+    .execution-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .execution-card-header {
+        flex-direction: column;
+    }
+}
+
+
+/* =========================================================
+   TERMINAL INTERACTIVA TURBO X
+   ========================================================= */
+
+.terminal-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+.terminal-card {
+    min-height: 430px;
+}
+
+.runtime-input-hidden {
+    display: none !important;
+}
+
+.terminal-window {
+    min-height: 310px;
+    max-height: 440px;
+    overflow: auto;
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: #050b16;
+    padding: 18px;
+    box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.22);
+}
+
+.runtime-output.terminal-output {
+    min-height: 230px;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: #e5e7eb;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 15px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+}
+
+.terminal-input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+    font-family: "Consolas", "Courier New", monospace;
+}
+
+.terminal-input-row.hidden {
+    display: none;
+}
+
+.terminal-prompt {
+    color: #38bdf8;
+    font-weight: 900;
+    font-size: 16px;
+}
+
+.terminal-input {
+    flex: 1;
+    min-width: 120px;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: #fef9c3;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 15px;
+    line-height: 1.55;
+}
+
+.terminal-input::placeholder {
+    color: #64748b;
+}
+
+.terminal-cursor {
+    width: 9px;
+    height: 18px;
+    background: #38bdf8;
+    display: inline-block;
+    animation: terminalBlink 1s steps(2, start) infinite;
+}
+
+@keyframes terminalBlink {
+    0%, 45% {
+        opacity: 1;
+    }
+
+    46%, 100% {
+        opacity: 0;
+    }
+}
+
+.terminal-help {
+    margin-top: 14px;
+}
+
+.terminal-help code {
+    color: #fde68a;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 2px 5px;
+    border-radius: 6px;
+}
+
+body.light-theme .terminal-window {
+    background: #0f172a;
+    border-color: rgba(15, 23, 42, 0.18);
+}
+
+body.light-theme .runtime-output.terminal-output {
+    color: #e5e7eb;
+}
+
+body.light-theme .terminal-input {
+    color: #fef9c3;
+}
+
+
+
+/* =========================================================
+   BOTONES RÁPIDOS DEL EDITOR
+   ========================================================= */
+
+.snippet-chip {
+    cursor: pointer;
+    border: 1px solid rgba(56, 189, 248, 0.30);
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.snippet-chip:hover {
+    transform: translateY(-1px);
+    border-color: rgba(56, 189, 248, 0.70);
+    box-shadow: 0 8px 18px rgba(56, 189, 248, 0.14);
+}
+
+/* =========================================================
+   AJUSTE TEMA CLARO - TERMINAL DE EJECUCIÓN
+   ========================================================= */
+
+body.light-theme .terminal-card,
+body.light-theme .runtime-vars-card {
+    background: rgba(255, 255, 255, 0.86) !important;
+    color: #0f172a !important;
+    border-color: rgba(148, 163, 184, 0.32) !important;
+}
+
+body.light-theme .terminal-card h4,
+body.light-theme .runtime-vars-card h4,
+body.light-theme .execution-card-header h4 {
+    color: #0f172a !important;
+}
+
+body.light-theme .terminal-card p,
+body.light-theme .execution-card-header p,
+body.light-theme .terminal-help,
+body.light-theme .runtime-help {
+    color: #475569 !important;
+}
+
+body.light-theme .terminal-window {
+    background: #0b1220 !important;
+    border: 1px solid rgba(15, 23, 42, 0.28) !important;
+    box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.32) !important;
+}
+
+body.light-theme .runtime-output.terminal-output,
+body.light-theme #salidaPrograma {
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    opacity: 1 !important;
+}
+
+body.light-theme .terminal-input {
+    color: #fef08a !important;
+    -webkit-text-fill-color: #fef08a !important;
+}
+
+body.light-theme .terminal-prompt {
+    color: #38bdf8 !important;
+}
+
+body.light-theme .terminal-cursor {
+    background: #38bdf8 !important;
+}
+
+body.light-theme .terminal-help code {
+    color: #92400e !important;
+    background: rgba(251, 191, 36, 0.18) !important;
+}
+
+body.light-theme .chip {
+    background: rgba(37, 99, 235, 0.10) !important;
+    color: #1d4ed8 !important;
+    border-color: rgba(37, 99, 235, 0.25) !important;
+}
+
+body.light-theme .snippet-chip:hover {
+    border-color: rgba(37, 99, 235, 0.55) !important;
+    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.12) !important;
+}
+
+
+
+/* =========================================================
+   SNIPPETS DEL EDITOR
+   ========================================================= */
+
+.editor-snippet-actions {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.snippet-chip {
+    cursor: pointer;
+    border: 1px solid rgba(56, 189, 248, 0.30);
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.snippet-chip:hover {
+    transform: translateY(-1px);
+    border-color: rgba(56, 189, 248, 0.70);
+    box-shadow: 0 8px 18px rgba(56, 189, 248, 0.14);
+}
+
+.info-chip {
+    cursor: default;
+    opacity: 0.85;
+}
+
+/* =========================================================
+   TERMINAL DE EJECUCIÓN - CONTRASTE EN TEMA CLARO Y OSCURO
+   ========================================================= */
+
+/* La terminal siempre usa estilo consola oscuro para mantener legibilidad. */
+.terminal-window,
+body.light-theme .terminal-window {
+    background: #050b16 !important;
+    color: #f8fafc !important;
+    border: 1px solid rgba(56, 189, 248, 0.20) !important;
+    box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.42) !important;
+}
+
+/* Pre de salida */
+#salidaPrograma,
+.runtime-output,
+.runtime-output.terminal-output,
+.terminal-output,
+body.light-theme #salidaPrograma,
+body.light-theme .runtime-output,
+body.light-theme .runtime-output.terminal-output,
+body.light-theme .terminal-output {
+    background: transparent !important;
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+}
+
+/* Todo elemento interno de la terminal conserva contraste */
+.terminal-window *,
+body.light-theme .terminal-window * {
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    opacity: 1 !important;
+}
+
+/* Entrada interactiva */
+.terminal-input,
+body.light-theme .terminal-input {
+    background: transparent !important;
+    color: #fef08a !important;
+    -webkit-text-fill-color: #fef08a !important;
+    caret-color: #fef08a !important;
+}
+
+.terminal-prompt,
+body.light-theme .terminal-prompt {
+    color: #38bdf8 !important;
+    -webkit-text-fill-color: #38bdf8 !important;
+    font-weight: 900 !important;
+}
+
+.terminal-cursor,
+body.light-theme .terminal-cursor {
+    background: #38bdf8 !important;
+}
+
+body.light-theme .terminal-card,
+body.light-theme .runtime-vars-card {
+    background: rgba(255, 255, 255, 0.88) !important;
+    color: #0f172a !important;
+    border-color: rgba(148, 163, 184, 0.32) !important;
+}
+
+body.light-theme .terminal-card h4,
+body.light-theme .runtime-vars-card h4,
+body.light-theme .execution-card-header h4 {
+    color: #0f172a !important;
+}
+
+body.light-theme .terminal-card p,
+body.light-theme .execution-card-header p,
+body.light-theme .terminal-help,
+body.light-theme .runtime-help {
+    color: #475569 !important;
+}
+
+body.light-theme .terminal-help code {
+    color: #92400e !important;
+    background: rgba(251, 191, 36, 0.18) !important;
+    -webkit-text-fill-color: #92400e !important;
+}
+
+body.light-theme .chip {
+    background: rgba(37, 99, 235, 0.10) !important;
+    color: #1d4ed8 !important;
+    border-color: rgba(37, 99, 235, 0.25) !important;
+}
+
+body.light-theme .snippet-chip:hover {
+    border-color: rgba(37, 99, 235, 0.55) !important;
+    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.12) !important;
+}
+
+
+
+/* =========================================================
+   SNIPPETS FUNCIONALES + GUÍAS DE INDENTACIÓN
+   Versión combinada sobre styles.1.css funcional.
+   ========================================================= */
+
+.editor-snippet-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.snippet-chip {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    user-select: none;
+    border: 1px solid rgba(56, 189, 248, 0.30);
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.snippet-chip:hover {
+    transform: translateY(-1px);
+    border-color: rgba(56, 189, 248, 0.70);
+    box-shadow: 0 8px 18px rgba(56, 189, 248, 0.14);
+}
+
+.info-chip {
+    cursor: default !important;
+    opacity: 0.85;
+}
+
+/*
+   La guía se dibuja dentro de la capa de resaltado.
+   No es una capa encima del textarea, por eso no bloquea escritura ni botones.
+*/
+.syntax-indent-guide {
+    display: inline-block;
+    width: 37.2px;
+    height: 1em;
+    border-left: 1px dotted rgba(125, 211, 252, 0.42);
+    box-sizing: border-box;
+    color: transparent;
+}
+
+body.light-theme .syntax-indent-guide {
+    border-left-color: rgba(37, 99, 235, 0.36);
+}
+
+body.light-theme .snippet-chip:hover {
+    border-color: rgba(37, 99, 235, 0.55) !important;
+    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.12) !important;
+}
+
+/* Terminal legible también en tema claro */
+.terminal-window,
+body.light-theme .terminal-window {
+    background: #050b16 !important;
+    color: #f8fafc !important;
+    border: 1px solid rgba(56, 189, 248, 0.20) !important;
+    box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.42) !important;
+}
+
+#salidaPrograma,
+.runtime-output,
+.runtime-output.terminal-output,
+.terminal-output,
+body.light-theme #salidaPrograma,
+body.light-theme .runtime-output,
+body.light-theme .runtime-output.terminal-output,
+body.light-theme .terminal-output {
+    background: transparent !important;
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+}
+
+.terminal-input,
+body.light-theme .terminal-input {
+    background: transparent !important;
+    color: #fef08a !important;
+    -webkit-text-fill-color: #fef08a !important;
+    caret-color: #fef08a !important;
+}
+
+.terminal-prompt,
+body.light-theme .terminal-prompt {
+    color: #38bdf8 !important;
+    -webkit-text-fill-color: #38bdf8 !important;
+    font-weight: 900 !important;
+}
+
+.terminal-cursor,
+body.light-theme .terminal-cursor {
+    background: #38bdf8 !important;
+}

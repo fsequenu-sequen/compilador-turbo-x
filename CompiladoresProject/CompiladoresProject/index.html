@@ -41,6 +41,10 @@
                     <span>📈</span>
                     Gráficas
                 </button>
+                <button class="menu-item" data-panel="executionPanel">
+                    <span>▶️</span>
+                    Ejecución
+                </button>
             </nav>
 
             <div class="sidebar-card">
@@ -81,6 +85,7 @@
                         <option value="grafica">Gráfica cuadrática</option>
                         <option value="trigonometrica">Gráfica trigonométrica</option>
                         <option value="divisionCero">División entre cero</option>
+                        <option value="ejecucionLeer">Ejecución con LEER</option>
                     </select>
 
                     <button class="btn ghost" id="btnEjemplo" type="button">Cargar ejemplo</button>
@@ -88,6 +93,7 @@
                     <button class="btn ghost" id="btnLimpiarResultados" type="button">Limpiar resultados</button>
                     <button class="btn secondary" id="btnDescargarReporte" type="button">Descargar reporte</button>
                     <button class="btn primary" id="btnCompilar" type="button">Compilar código</button>
+                    <button class="btn success" id="btnEjecutarCodigo" type="button">Ejecutar código</button>
                 </div>
             </header>
 
@@ -126,11 +132,21 @@
                         <p>Escribe o carga un archivo fuente del lenguaje Turbo X.</p>
                     </div>
 
-                    <div class="chip-group">
-                        <span class="chip">PROGRAMA</span>
-                        <span class="chip">INICIO</span>
-                        <span class="chip">FIN</span>
-                        <span class="chip">GRAFICAR</span>
+                    <div class="chip-group snippet-actions editor-snippet-actions">
+                        <button class="chip snippet-chip" type="button" data-snippet="programa">PROGRAMA</button>
+                        <button class="chip snippet-chip" type="button" data-snippet="declaraciones">DECLARACIONES</button>
+                        <button class="chip snippet-chip" type="button" data-snippet="entero">ENTERO</button>
+                        <button class="chip snippet-chip" type="button" data-snippet="real">REAL</button>
+                        <button class="chip snippet-chip" type="button" data-snippet="cadena">CADENA</button>
+                        <button class="chip snippet-chip" type="button" data-snippet="caracter">CARACTER</button>
+                        <button class="chip snippet-chip" type="button" data-snippet="logico">LOGICO</button>
+                        <button class="chip snippet-chip" type="button" data-snippet="imprimir">IMPRIMIR</button>
+                        <button class="chip snippet-chip" type="button" data-snippet="leer">LEER</button>
+                        <button class="chip snippet-chip" type="button" data-snippet="si">SI</button>
+                        <button class="chip snippet-chip" type="button" data-snippet="sino">SI/SINO</button>
+                        <button class="chip snippet-chip" type="button" data-snippet="mientras">MIENTRAS</button>
+                        <button class="chip snippet-chip" type="button" data-snippet="evaluar">EVALUAR</button>
+                        <button class="chip snippet-chip" type="button" data-snippet="graficar">GRAFICAR</button>
                     </div>
                 </div>
 
@@ -285,6 +301,74 @@
                     <p id="graficaAyuda">Gráfica pendiente. Compila un programa con GRAFICAR para visualizarla.</p>
                 </div>
 </section>
+
+            
+            <!-- Panel Ejecución -->
+            <section id="executionPanel" class="workspace-panel">
+                <div class="panel-header">
+                    <div>
+                        <h3>Ejecución del programa</h3>
+                        <p>Terminal interactiva para ejecutar IMPRIMIR, LEER, asignaciones, SI, MIENTRAS y EVALUAR.</p>
+                    </div>
+
+                    <div class="chip-group">
+                        <span class="chip info-chip">IMPRIMIR</span>
+                        <span class="chip info-chip">LEER interactivo</span>
+                        <span class="chip info-chip">ENTER</span>
+                        <span class="chip info-chip">Memoria</span>
+                    </div>
+                </div>
+
+                <div class="terminal-layout">
+                    <article class="result-card terminal-card">
+                        <div class="execution-card-header">
+                            <div>
+                                <h4>Terminal Turbo X</h4>
+                                <p>Cuando el programa ejecute LEER, escribe el dato en la línea de entrada y presiona Enter.</p>
+                            </div>
+                            <div class="execution-actions">
+                                <button class="tool-btn" id="btnLimpiarEjecucion" type="button">Limpiar terminal</button>
+                                <button class="btn success small" id="btnEjecutarPanel" type="button">Ejecutar</button>
+                            </div>
+                        </div>
+
+                        <!-- Se mantiene oculto para compatibilidad con código anterior, pero ya no se usa como entrada principal. -->
+                        <textarea id="entradaPrograma" class="runtime-input-hidden" spellcheck="false"></textarea>
+
+                        <div class="terminal-window" id="terminalWindow">
+                            <pre id="salidaPrograma" class="runtime-output terminal-output">Presiona “Ejecutar código” para iniciar la terminal.</pre>
+
+                            <div id="terminalInputRow" class="terminal-input-row hidden">
+                                <span class="terminal-prompt">&gt;</span>
+                                <input id="terminalInput" class="terminal-input" type="text" autocomplete="off" spellcheck="false">
+                                <span class="terminal-cursor"></span>
+                            </div>
+                        </div>
+
+                        <div class="runtime-help terminal-help">
+                            <strong>Ejemplo:</strong> si el código imprime <code>IMPRIMIR("ingrese su edad");</code> y luego ejecuta <code>LEER(edad);</code>, la terminal mostrará el mensaje, esperará el dato y continuará al presionar Enter.
+                        </div>
+                    </article>
+                </div>
+
+                <article class="result-card runtime-vars-card">
+                    <h4>Memoria de variables al finalizar</h4>
+                    <table class="mini-table">
+                        <thead>
+                            <tr>
+                                <th>Variable</th>
+                                <th>Tipo</th>
+                                <th>Valor final</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaVariablesRuntime">
+                            <tr>
+                                <td colspan="3" class="empty-row">Sin ejecución todavía.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </article>
+            </section>
 
             <!-- Consola inferior -->
             <section class="console-panel">

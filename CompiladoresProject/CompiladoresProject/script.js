@@ -14,6 +14,7 @@
    ========================================================= */
 
 const API_BASE = "http://localhost:8080";
+const CODIGO_STORAGE_KEY = "turbox_codigo_actual_funcional_guias_v1";
 
 const codigo = document.getElementById("codigo");
 const lineNumbers = document.getElementById("lineNumbers");
@@ -25,6 +26,7 @@ const btnLimpiarResultados = document.getElementById("btnLimpiarResultados");
 const btnDescargarReporte = document.getElementById("btnDescargarReporte");
 const btnTema = document.getElementById("btnTema");
 const btnCompilar = document.getElementById("btnCompilar");
+const btnEjecutarCodigo = document.getElementById("btnEjecutarCodigo");
 const btnLimpiar = document.getElementById("btnLimpiar");
 const btnCopiar = document.getElementById("btnCopiar");
 const btnLimpiarConsola = document.getElementById("btnLimpiarConsola");
@@ -50,10 +52,25 @@ const urlGrafica = document.getElementById("urlGrafica");
 const btnAbrirGrafica = document.getElementById("btnAbrirGrafica");
 
 const serverStatus = document.getElementById("serverStatus");
+const entradaPrograma = document.getElementById("entradaPrograma");
+const salidaPrograma = document.getElementById("salidaPrograma");
+const terminalWindow = document.getElementById("terminalWindow");
+const terminalInputRow = document.getElementById("terminalInputRow");
+const terminalInput = document.getElementById("terminalInput");
+const tablaVariablesRuntime = document.getElementById("tablaVariablesRuntime");
+const btnEjecutarPanel = document.getElementById("btnEjecutarPanel");
+const btnLimpiarEjecucion = document.getElementById("btnLimpiarEjecucion");
+const btnLimpiarEntradas = document.getElementById("btnLimpiarEntradas");
 const editorStats = document.getElementById("editorStats");
 const autosaveStatus = document.getElementById("autosaveStatus");
 
 let ultimaUrlGrafica = "";
+
+let ejecucionInteractivaActiva = false;
+let codigoEjecucionInteractiva = "";
+let entradasInteractivas = [];
+let historialEntradasTerminal = [];
+let salidaPendienteLeer = [];
 let ultimoReporteCompilacion = {
     fecha: "",
     codigo: "",
@@ -89,6 +106,137 @@ document.querySelectorAll(".menu-item").forEach((button) => {
     });
 });
 
+
+
+
+/* =========================================================
+   BOTONES RÁPIDOS DEL EDITOR
+   Insertan fragmentos de código Turbo X.
+   ========================================================= */
+
+function inicializarSnippetsEditor() {
+    document.querySelectorAll(".editor-snippet-actions button[data-snippet]").forEach((boton) => {
+        boton.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            insertarSnippetTurboX(boton.dataset.snippet);
+        });
+    });
+}
+
+function insertarSnippetTurboX(tipo) {
+    const snippets = {
+        programa:
+`PROGRAMA NombrePrograma
+INICIO
+
+FIN`,
+
+        declaraciones:
+`ENTERO numero = 0;
+REAL total = 0.0;
+CADENA nombre = "Carlos";
+CARACTER letra = 'A';
+LOGICO activo = VERDADERO;`,
+
+        entero:
+`ENTERO numero = 0;`,
+
+        real:
+`REAL total = 0.0;`,
+
+        cadena:
+`CADENA nombre = "Carlos";`,
+
+        caracter:
+`CARACTER letra = 'A';`,
+
+        logico:
+`LOGICO activo = VERDADERO;`,
+
+        imprimir:
+`IMPRIMIR("Hola mundo");`,
+
+        leer:
+`LEER(variable);`,
+
+        si:
+`SI (condicion) ENTONCES {
+    IMPRIMIR("Condicion verdadera");
+}`,
+
+        sino:
+`SI (condicion) ENTONCES {
+    IMPRIMIR("Condicion verdadera");
+} SINO {
+    IMPRIMIR("Condicion falsa");
+}`,
+
+        mientras:
+`MIENTRAS (contador < 5) HACER {
+    IMPRIMIR(contador);
+    contador = contador + 1;
+}`,
+
+        evaluar:
+`EVALUAR (opcion) {
+    CASO 1:
+        IMPRIMIR("Opcion uno");
+        PARAR;
+
+    CASO 2:
+        IMPRIMIR("Opcion dos");
+        PARAR;
+
+    OTRO:
+        IMPRIMIR("Otra opcion");
+        PARAR;
+}`,
+
+        graficar:
+`GRAFICAR f(x) = x ^ 2 + x + 2;`
+    };
+
+    const texto = snippets[tipo];
+
+    if (!texto || !codigo) {
+        return;
+    }
+
+    insertarTextoEnEditor(texto);
+    log("Fragmento insertado: " + tipo.toUpperCase() + ".");
+}
+
+function insertarTextoEnEditor(texto) {
+    const inicio = codigo.selectionStart ?? codigo.value.length;
+    const fin = codigo.selectionEnd ?? codigo.value.length;
+
+    const antes = codigo.value.substring(0, inicio);
+    const despues = codigo.value.substring(fin);
+
+    let textoInsertar = texto;
+
+    // Salto de línea real, no texto visible "\\n".
+    if (antes.length > 0 && !antes.endsWith("\n")) {
+        textoInsertar = "\n" + textoInsertar;
+    }
+
+    if (despues.length > 0 && !textoInsertar.endsWith("\n")) {
+        textoInsertar = textoInsertar + "\n";
+    }
+
+    codigo.value = antes + textoInsertar + despues;
+
+    const nuevaPosicion = (antes + textoInsertar).length;
+    codigo.focus();
+    codigo.setSelectionRange(nuevaPosicion, nuevaPosicion);
+
+    actualizarLineas();
+
+    if (typeof guardarCodigoLocal === "function") {
+        guardarCodigoLocal();
+    }
+}
 
 /* =========================================================
    TEMA CLARO / OSCURO
@@ -128,6 +276,7 @@ if (btnTema) {
 /* =========================================================
    RESALTADO DE SINTAXIS TURBO X
    El resaltado es visual. No altera el análisis del backend.
+   Incluye guías de indentación por línea.
    ========================================================= */
 
 function aplicarResaltadoTurboX() {
@@ -136,17 +285,43 @@ function aplicarResaltadoTurboX() {
     }
 
     const texto = codigo.value;
-    const html = resaltarCodigoTurboX(texto);
-
-    /*
-       Si el texto termina con salto de línea, se agrega un espacio invisible
-       para que el editor visual mantenga la última línea vacía.
-    */
-    highlightLayer.innerHTML = html + (texto.endsWith("\n") ? " " : "");
+    highlightLayer.innerHTML = resaltarCodigoTurboX(texto) + (texto.endsWith("\n") ? " " : "");
     sincronizarScrollEditor();
 }
 
 function resaltarCodigoTurboX(texto) {
+    return texto
+        .split("\n")
+        .map((linea) => resaltarLineaTurboXConGuias(linea))
+        .join("\n");
+}
+
+function resaltarLineaTurboXConGuias(linea) {
+    const matchIndentacion = linea.match(/^\s*/);
+    const indentacionOriginal = matchIndentacion ? matchIndentacion[0] : "";
+    const resto = linea.substring(indentacionOriginal.length);
+
+    let htmlIndentacion = "";
+    const indentacionNormalizada = indentacionOriginal.replace(/\t/g, "    ");
+    let espacios = indentacionNormalizada.length;
+
+    /*
+       Cada bloque de 4 espacios produce una guía vertical.
+       La guía solo aparece donde realmente hay indentación.
+    */
+    while (espacios >= 4) {
+        htmlIndentacion += '<span class="syntax-indent-guide">    </span>';
+        espacios -= 4;
+    }
+
+    if (espacios > 0) {
+        htmlIndentacion += escapeHtml(" ".repeat(espacios));
+    }
+
+    return htmlIndentacion + resaltarFragmentoTurboX(resto);
+}
+
+function resaltarFragmentoTurboX(texto) {
     let resultado = "";
     let i = 0;
 
@@ -177,18 +352,11 @@ function resaltarCodigoTurboX(texto) {
 
         // Comentario de línea
         if (actual === "/" && siguiente === "/") {
-            let j = i;
-
-            while (j < texto.length && texto[j] !== "\n") {
-                j++;
-            }
-
-            resultado += envolverToken(texto.slice(i, j), "comment");
-            i = j;
-            continue;
+            resultado += envolverToken(texto.slice(i), "comment");
+            break;
         }
 
-        // Comentario de bloque
+        // Comentario de bloque en una misma línea visual
         if (actual === "/" && siguiente === "*") {
             let j = i + 2;
 
@@ -216,6 +384,7 @@ function resaltarCodigoTurboX(texto) {
                 }
 
                 escapado = c === "\\" && !escapado;
+
                 if (c !== "\\") {
                     escapado = false;
                 }
@@ -242,6 +411,7 @@ function resaltarCodigoTurboX(texto) {
                 }
 
                 escapado = c === "\\" && !escapado;
+
                 if (c !== "\\") {
                     escapado = false;
                 }
@@ -254,7 +424,7 @@ function resaltarCodigoTurboX(texto) {
             continue;
         }
 
-        // Números enteros y reales
+        // Números
         if (/[0-9]/.test(actual)) {
             let j = i;
 
@@ -267,7 +437,7 @@ function resaltarCodigoTurboX(texto) {
             continue;
         }
 
-        // Identificadores, palabras reservadas, tipos y funciones matemáticas
+        // Identificadores, reservadas, tipos y funciones
         if (/[A-Za-z_]/.test(actual)) {
             let j = i;
 
@@ -319,8 +489,6 @@ function resaltarCodigoTurboX(texto) {
 function envolverToken(valor, clase) {
     return `<span class="syntax-${clase}">${escapeHtml(valor)}</span>`;
 }
-
-
 
 /* =========================================================
    MARCADO DE LÍNEAS CON ERROR Y VALIDACIÓN EN VIVO
@@ -572,6 +740,17 @@ function tieneComillasSimplesImpares(linea) {
     return cantidad % 2 !== 0;
 }
 
+
+
+function activarPanel(panelId) {
+    document.querySelectorAll(".menu-item").forEach((item) => {
+        item.classList.toggle("active", item.dataset.panel === panelId);
+    });
+
+    document.querySelectorAll(".workspace-panel").forEach((panel) => {
+        panel.classList.toggle("active-panel", panel.id === panelId);
+    });
+}
 
 /* =========================================================
    EDITOR Y ARCHIVOS
@@ -913,6 +1092,26 @@ async function procesarGraficaConJCUP(fuente) {
 
     return await respuesta.json();
 }
+
+async function ejecutarProgramaBackend(fuente, entradas) {
+    const respuesta = await fetch(`${API_BASE}/api/ejecutar`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            codigo: fuente,
+            entradas: entradas || ""
+        })
+    });
+
+    if (!respuesta.ok) {
+        throw new Error("Error HTTP en /api/ejecutar: " + respuesta.status);
+    }
+
+    return await respuesta.json();
+}
+
 
 /* =========================================================
    RENDER DE TOKENS
@@ -1579,6 +1778,384 @@ btnAbrirGrafica.addEventListener("click", () => {
 
     window.open(urlFinal, "_blank");
 });
+
+/* =========================================================
+   EJECUCIÓN / INTÉRPRETE TURBO X
+   ========================================================= */
+
+async function ejecutarCodigoDesdeUI() {
+    const fuente = codigo.value.trim();
+
+    if (!fuente) {
+        escribirSalidaPrograma("No hay código para ejecutar.");
+        log("No hay código para ejecutar.", "Advertencia");
+        return;
+    }
+
+    if (btnEjecutarCodigo) {
+        btnEjecutarCodigo.disabled = true;
+        btnEjecutarCodigo.textContent = "Validando...";
+    }
+
+    if (btnEjecutarPanel) {
+        btnEjecutarPanel.disabled = true;
+        btnEjecutarPanel.textContent = "Validando...";
+    }
+
+    activarPanel("executionPanel");
+    limpiarTerminalInteractiva();
+    escribirSalidaPrograma("Validando código antes de ejecutar...");
+
+    try {
+        // FASE 1: Léxico
+        log("Validando fase léxica antes de ejecutar...");
+        const tokens = await analizarLexico(fuente);
+        renderTokens(tokens);
+        renderResumenLexico(tokens);
+
+        const totalErroresLexicos = contarErroresLexicos(tokens);
+
+        if (totalErroresLexicos > 0) {
+            renderSintacticoNoEjecutado("No se ejecutó el análisis sintáctico porque existen errores léxicos.");
+            renderSemanticoNoEjecutado("No se ejecutó el análisis semántico porque existen errores léxicos.");
+            renderGraficaNoEjecutada("No se generó gráfica porque existen errores léxicos.");
+            escribirSalidaPrograma("No se puede ejecutar el programa porque existen errores léxicos.");
+            log("Ejecución detenida por errores léxicos.", "Error");
+            return;
+        }
+
+        // FASE 2: Sintaxis
+        log("Validando fase sintáctica antes de ejecutar...");
+        const resultadoSintactico = await analizarSintactico(fuente);
+        renderSintactico(resultadoSintactico);
+
+        if (!resultadoSintactico || !resultadoSintactico.correcto) {
+            renderSemanticoNoEjecutado("No se ejecutó el análisis semántico porque existen errores sintácticos.");
+            renderGraficaNoEjecutada("No se generó gráfica porque existen errores sintácticos.");
+            escribirSalidaPrograma("No se puede ejecutar el programa porque existen errores sintácticos.");
+            log("Ejecución detenida por errores sintácticos.", "Error");
+            return;
+        }
+
+        // FASE 3: Semántica
+        log("Validando fase semántica antes de ejecutar...");
+        const resultadoSemantico = await analizarSemantico(fuente);
+        renderSemantico(resultadoSemantico);
+
+        if (!resultadoSemantico || !resultadoSemantico.correcto) {
+            renderGraficaNoEjecutada("No se generó gráfica porque existen errores semánticos.");
+            escribirSalidaPrograma("No se puede ejecutar el programa porque existen errores semánticos.");
+            log("Ejecución detenida por errores semánticos.", "Error");
+            return;
+        }
+
+        // FASE 4: Ejecución interactiva
+        log("Iniciando terminal interactiva Turbo X...");
+        codigoEjecucionInteractiva = fuente;
+        entradasInteractivas = [];
+        historialEntradasTerminal = [];
+        salidaPendienteLeer = [];
+
+        await ejecutarProgramaInteractivo();
+
+    } catch (error) {
+        escribirSalidaPrograma("Error durante la ejecución:\n" + error.message);
+        ocultarEntradaTerminal();
+        log("No se pudo ejecutar el programa.", "Error");
+        log(error.message, "Detalle");
+    } finally {
+        if (btnEjecutarCodigo) {
+            btnEjecutarCodigo.disabled = false;
+            btnEjecutarCodigo.textContent = "Ejecutar código";
+        }
+
+        if (btnEjecutarPanel) {
+            btnEjecutarPanel.disabled = false;
+            btnEjecutarPanel.textContent = "Ejecutar";
+        }
+    }
+}
+
+
+async function ejecutarProgramaInteractivo() {
+    ejecucionInteractivaActiva = true;
+    ocultarEntradaTerminal(false);
+
+    const entradasTexto = entradasInteractivas.join("\n");
+    const resultado = await ejecutarProgramaBackend(codigoEjecucionInteractiva, entradasTexto);
+
+    if (necesitaEntradaLeer(resultado)) {
+        salidaPendienteLeer = resultado.salida || [];
+        renderTerminal(resultado.salida || [], true);
+        renderTablaVariablesRuntime(resultado.variables || {});
+        mostrarEntradaTerminal();
+        log("El programa espera una entrada para LEER.");
+        return;
+    }
+
+    ocultarEntradaTerminal();
+
+    if (resultado.correcto) {
+        renderTerminal(resultado.salida || [], false);
+        renderTablaVariablesRuntime(resultado.variables || {});
+        log("Ejecución finalizada correctamente.");
+    } else {
+        renderTerminal(resultado.salida || [], false, resultado.errores || []);
+        renderTablaVariablesRuntime(resultado.variables || {});
+        log("Ejecución finalizada con errores.", "Error");
+    }
+
+    ejecucionInteractivaActiva = false;
+}
+
+function necesitaEntradaLeer(resultado) {
+    if (!resultado || !resultado.errores || resultado.errores.length === 0) {
+        return false;
+    }
+
+    return resultado.errores.some((error) =>
+        String(error).toUpperCase().includes("LEER(") &&
+        String(error).toLowerCase().includes("necesita una entrada")
+    );
+}
+
+function renderTerminal(salida, esperandoEntrada, errores = []) {
+    const lineas = construirLineasTerminal(salida || []);
+
+    if (errores && errores.length > 0) {
+        lineas.push("");
+        lineas.push("ERRORES DE EJECUCIÓN");
+        lineas.push("--------------------");
+        errores.forEach((error, index) => {
+            lineas.push((index + 1) + ". " + error);
+        });
+    }
+
+    if (salidaPrograma) {
+        salidaPrograma.textContent = lineas.length > 0
+                ? lineas.join("\n")
+                : "(El programa no generó salida con IMPRIMIR)";
+    }
+
+    if (terminalWindow) {
+        terminalWindow.scrollTop = terminalWindow.scrollHeight;
+    }
+
+    if (esperandoEntrada) {
+        mostrarEntradaTerminal();
+    }
+}
+
+function construirLineasTerminal(salida) {
+    const resultado = [];
+    const historialOrdenado = [...historialEntradasTerminal].sort((a, b) => a.posicionSalida - b.posicionSalida);
+    let indiceHistorial = 0;
+
+    for (let i = 0; i <= salida.length; i++) {
+        while (
+            indiceHistorial < historialOrdenado.length &&
+            historialOrdenado[indiceHistorial].posicionSalida === i
+        ) {
+            resultado.push("> " + historialOrdenado[indiceHistorial].valor);
+            indiceHistorial++;
+        }
+
+        if (i < salida.length) {
+            resultado.push(salida[i]);
+        }
+    }
+
+    return resultado;
+}
+
+function mostrarEntradaTerminal() {
+    if (terminalInputRow) {
+        terminalInputRow.classList.remove("hidden");
+    }
+
+    if (terminalInput) {
+        terminalInput.disabled = false;
+        terminalInput.value = "";
+        setTimeout(() => terminalInput.focus(), 50);
+    }
+
+    if (terminalWindow) {
+        terminalWindow.scrollTop = terminalWindow.scrollHeight;
+    }
+}
+
+function ocultarEntradaTerminal(limpiar = true) {
+    if (terminalInputRow) {
+        terminalInputRow.classList.add("hidden");
+    }
+
+    if (terminalInput) {
+        terminalInput.disabled = true;
+
+        if (limpiar) {
+            terminalInput.value = "";
+        }
+    }
+}
+
+function limpiarTerminalInteractiva() {
+    entradasInteractivas = [];
+    historialEntradasTerminal = [];
+    salidaPendienteLeer = [];
+    ejecucionInteractivaActiva = false;
+    ocultarEntradaTerminal();
+    limpiarTablaVariablesRuntime();
+
+    if (salidaPrograma) {
+        salidaPrograma.textContent = "Terminal lista. Presiona “Ejecutar código” para iniciar.";
+    }
+}
+
+async function enviarEntradaTerminal() {
+    if (!terminalInput || terminalInput.disabled) {
+        return;
+    }
+
+    const valor = terminalInput.value;
+    entradasInteractivas.push(valor);
+
+    /*
+       Guardamos la posición donde el usuario escribió la entrada.
+       Así se ve como terminal real:
+       ingrese su edad
+       > 5
+       5
+    */
+    historialEntradasTerminal.push({
+        posicionSalida: salidaPendienteLeer.length,
+        valor
+    });
+
+    terminalInput.value = "";
+    ocultarEntradaTerminal(false);
+
+    try {
+        await ejecutarProgramaInteractivo();
+    } catch (error) {
+        escribirSalidaPrograma("Error durante la ejecución:\n" + error.message);
+        ocultarEntradaTerminal();
+        log("No se pudo continuar la ejecución interactiva.", "Error");
+    }
+}
+
+
+function renderResultadoEjecucion(resultado) {
+    if (!resultado) {
+        escribirSalidaPrograma("No se recibió respuesta del módulo de ejecución.");
+        limpiarTablaVariablesRuntime();
+        return;
+    }
+
+    let texto = "";
+
+    texto += "EJECUCIÓN TURBO X\n";
+    texto += "=================\n\n";
+    texto += "Estado: " + (resultado.correcto ? "Correcta" : "Con errores") + "\n";
+    texto += "Mensaje: " + (resultado.mensaje || "Sin mensaje") + "\n";
+    texto += "Instrucciones ejecutadas: " + (resultado.instruccionesEjecutadas || 0) + "\n\n";
+
+    if (resultado.salida && resultado.salida.length > 0) {
+        texto += "SALIDA DEL PROGRAMA\n";
+        texto += "-------------------\n";
+        texto += resultado.salida.join("\n") + "\n\n";
+    } else {
+        texto += "SALIDA DEL PROGRAMA\n";
+        texto += "-------------------\n";
+        texto += "(El programa no generó salida con IMPRIMIR)\n\n";
+    }
+
+    if (resultado.errores && resultado.errores.length > 0) {
+        texto += "ERRORES DE EJECUCIÓN\n";
+        texto += "--------------------\n";
+        resultado.errores.forEach((error, index) => {
+            texto += (index + 1) + ". " + error + "\n";
+        });
+    }
+
+    escribirSalidaPrograma(texto.trimEnd());
+    renderTablaVariablesRuntime(resultado.variables || {});
+}
+
+function escribirSalidaPrograma(texto) {
+    if (salidaPrograma) {
+        salidaPrograma.textContent = texto;
+    }
+}
+
+function renderTablaVariablesRuntime(variables) {
+    if (!tablaVariablesRuntime) {
+        return;
+    }
+
+    const nombres = Object.keys(variables || {});
+
+    if (nombres.length === 0) {
+        tablaVariablesRuntime.innerHTML = '<tr><td colspan="3" class="empty-row">No hay variables en memoria.</td></tr>';
+        return;
+    }
+
+    tablaVariablesRuntime.innerHTML = nombres.map((nombre) => {
+        const variable = variables[nombre] || {};
+        return `
+            <tr>
+                <td>${escapeHtml(nombre)}</td>
+                <td>${escapeHtml(variable.tipo || "DESCONOCIDO")}</td>
+                <td>${escapeHtml(variable.valorTexto || "")}</td>
+            </tr>
+        `;
+    }).join("");
+}
+
+function limpiarTablaVariablesRuntime() {
+    if (tablaVariablesRuntime) {
+        tablaVariablesRuntime.innerHTML = '<tr><td colspan="3" class="empty-row">Sin ejecución todavía.</td></tr>';
+    }
+}
+
+if (btnEjecutarCodigo) {
+    btnEjecutarCodigo.addEventListener("click", ejecutarCodigoDesdeUI);
+}
+
+if (btnEjecutarPanel) {
+    btnEjecutarPanel.addEventListener("click", ejecutarCodigoDesdeUI);
+}
+
+if (btnLimpiarEjecucion) {
+    btnLimpiarEjecucion.addEventListener("click", () => {
+        limpiarTerminalInteractiva();
+        log("Terminal de ejecución limpiada.");
+    });
+}
+
+if (btnLimpiarEntradas) {
+    btnLimpiarEntradas.addEventListener("click", () => {
+        if (entradaPrograma) {
+            entradaPrograma.value = "";
+        }
+
+        entradasInteractivas = [];
+        historialEntradasTerminal = [];
+        salidaPendienteLeer = [];
+        log("Entradas de LEER limpiadas.");
+    });
+}
+
+
+if (terminalInput) {
+    terminalInput.addEventListener("keydown", async (event) => {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            await enviarEntradaTerminal();
+        }
+    });
+}
+
+
 /* =========================================================
    UTILIDADES
    ========================================================= */
@@ -1728,6 +2305,21 @@ INICIO
     GRAFICAR f(x) = sin(x) + cos(x);
 FIN`,
 
+        ejecucionLeer: `PROGRAMA EjecutarLeer
+INICIO
+    CADENA nombre;
+    ENTERO edad;
+
+    IMPRIMIR("Ingrese su nombre:");
+    LEER(nombre);
+
+    IMPRIMIR("Ingrese su edad:");
+    LEER(edad);
+
+    IMPRIMIR(nombre);
+    IMPRIMIR(edad + 1);
+FIN`,
+
         divisionCero: `PROGRAMA DivisionCero
 INICIO
     ENTERO numero = 10 / 0;
@@ -1747,7 +2339,8 @@ function obtenerNombreEjemplo(tipo) {
         semantico: "Error semántico",
         grafica: "Gráfica cuadrática",
         trigonometrica: "Gráfica trigonométrica",
-        divisionCero: "División entre cero"
+        divisionCero: "División entre cero",
+        ejecucionLeer: "Ejecución con LEER"
     };
 
     return nombres[tipo] || "Código correcto";
@@ -1987,7 +2580,7 @@ function programarAutoguardado() {
 }
 
 function guardarCodigoLocal() {
-    localStorage.setItem("turbox_codigo_actual", codigo.value);
+    localStorage.setItem(CODIGO_STORAGE_KEY, codigo.value);
 
     if (autosaveStatus) {
         autosaveStatus.textContent = "Guardado: " + new Date().toLocaleTimeString();
@@ -1995,7 +2588,7 @@ function guardarCodigoLocal() {
 }
 
 function cargarCodigoLocal() {
-    const codigoGuardado = localStorage.getItem("turbox_codigo_actual");
+    const codigoGuardado = localStorage.getItem(CODIGO_STORAGE_KEY);
 
     if (codigoGuardado && !codigo.value.trim()) {
         codigo.value = codigoGuardado;
@@ -2053,6 +2646,7 @@ FIN`;
    ========================================================= */
 
 cargarCodigoLocal();
+inicializarSnippetsEditor();
 actualizarLineas();
 inicializarTema();
 limpiarCanvasGrafica("Gráfica pendiente. Compila un programa con GRAFICAR para visualizarla.");

@@ -467,16 +467,35 @@ public class AnalizadorSemantico {
         String tipoIzquierda = inferirTipo(op.izquierda, numeroLinea, "aritmetico");
         String tipoDerecha = inferirTipo(op.derecha, numeroLinea, "aritmetico");
 
+        /*
+         * Turbo X ahora permite concatenación formal con el operador +.
+         * Ejemplo válido:
+         *      IMPRIMIR("su edad es " + edad);
+         *
+         * Regla aplicada:
+         * - Si el operador es + y al menos un lado es CADENA o CARACTER,
+         *   la expresión resultante es CADENA.
+         * - Para -, *, /, %, ^ se siguen exigiendo operandos numéricos.
+         */
+        if (op.operador.equals("+")) {
+            boolean izquierdaTexto = esTexto(tipoIzquierda);
+            boolean derechaTexto = esTexto(tipoDerecha);
+
+            if (izquierdaTexto || derechaTexto) {
+                return "CADENA";
+            }
+        }
+
         if (!esNumerico(tipoIzquierda) && !"DESCONOCIDO".equals(tipoIzquierda)) {
             agregarError(numeroLinea, op.izquierda,
-                    "La expresión aritmética contiene un valor de tipo " + tipoIzquierda
-                            + ", pero se esperaba ENTERO o REAL.");
+                    "La operación '" + op.operador + "' contiene un valor de tipo " + tipoIzquierda
+                            + ", pero se esperaba ENTERO o REAL. Para unir texto con valores use el operador + con una CADENA.");
         }
 
         if (!esNumerico(tipoDerecha) && !"DESCONOCIDO".equals(tipoDerecha)) {
             agregarError(numeroLinea, op.derecha,
-                    "La expresión aritmética contiene un valor de tipo " + tipoDerecha
-                            + ", pero se esperaba ENTERO o REAL.");
+                    "La operación '" + op.operador + "' contiene un valor de tipo " + tipoDerecha
+                            + ", pero se esperaba ENTERO o REAL. Para unir texto con valores use el operador + con una CADENA.");
         }
 
         if (op.operador.equals("/") || op.operador.equals("%")) {
@@ -500,6 +519,10 @@ public class AnalizadorSemantico {
         }
 
         return "ENTERO";
+    }
+
+    private boolean esTexto(String tipo) {
+        return "CADENA".equals(tipo) || "CARACTER".equals(tipo);
     }
 
     private void validarIdentificadores(String expresion, int numeroLinea) {
