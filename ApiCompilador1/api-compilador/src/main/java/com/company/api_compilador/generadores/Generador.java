@@ -1,15 +1,24 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
+/** Chimaltenango 30 de mayo 2026
+Proyecto Final Compiladores
+Integrantes: 
+1990-23-4406	Christopher Obryan Mazariegos Crúz
+1990-23-17188	Luis Miguel Vaquiax Camey
+1990-23-10442	Keyner Alejandro Rivera Axpuac
+1990-23-22934	Freyder José Sequén Urlao
+*/
 package com.company.api_compilador.generadores;
 import java.io.File;
+
 /**
+ * Generador del analizador léxico principal mediante JFlex.
  *
- * @author ObryanMazariegos
+ * Esta clase no es parte del flujo normal del backend en ejecución. Se usa
+ * manualmente cuando se modifica Lexer.flex y se necesita regenerar
+ * AnalizadorLexico.java.
  */
 public class Generador {
     
+    /** Punto de entrada manual para regenerar el lexer léxico. */
     public static void main(String[] args) {
         // 1. Especificamos la ruta de tu archivo .flex
         // En proyectos Maven, la ruta suele empezar desde "src/main/java/..."
@@ -21,6 +30,10 @@ public class Generador {
         generarLexer(rutaFlex);
     }
 
+    /**
+     * Ejecuta JFlex sobre el archivo .flex indicado.
+     * Si el archivo existe, genera la clase Java correspondiente.
+     */
     public static void generarLexer(String ruta) {
         File archivo = new File(ruta);
         

@@ -1,3 +1,11 @@
+/** Chimaltenango 30 de mayo 2026
+Proyecto Final Compiladores
+Integrantes: 
+1990-23-4406	Christopher Obryan Mazariegos Crúz
+1990-23-17188	Luis Miguel Vaquiax Camey
+1990-23-10442	Keyner Alejandro Rivera Axpuac
+1990-23-22934	Freyder José Sequén Urlao
+*/
 package com.company.api_compilador.semantico;
 
 import java.util.ArrayList;
@@ -9,16 +17,33 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Analizador semántico del lenguaje Turbo X.
+ *
+ * Esta clase revisa que el programa tenga sentido más allá de la gramática:
+ * variables declaradas antes de usarse, tipos compatibles, condiciones lógicas,
+ * funciones matemáticas válidas y operaciones numéricas correctas.
+ *
+ * La salida principal es ResultadoSemantico, que contiene errores y tabla de
+ * símbolos para mostrar en la interfaz.
+ */
 public class AnalizadorSemantico {
 
+    // Tabla donde se registran variables declaradas y su información semántica.
     private final TablaSimbolos tabla = new TablaSimbolos();
+
+    // Lista acumulada de errores semánticos encontrados durante el análisis.
     private final List<ErrorSemantico> errores = new ArrayList<>();
+
+    // Evita reportar repetidamente el mismo error de división/módulo entre cero.
     private final Set<String> erroresDivisionCeroEmitidos = new HashSet<>();
 
+    // Tipos de datos formalmente aceptados por Turbo X.
     private static final Set<String> TIPOS = new HashSet<>(Arrays.asList(
             "ENTERO", "REAL", "CADENA", "CARACTER", "LOGICO"
     ));
 
+    // Funciones permitidas dentro de expresiones matemáticas y gráficas.
     private static final Set<String> FUNCIONES_MATEMATICAS = new HashSet<>(Arrays.asList(
             "SIN", "SEN", "COS", "TAN",
             "SQRT", "RAIZ",
@@ -27,10 +52,12 @@ public class AnalizadorSemantico {
             "MAX", "MIN"
     ));
 
+    // Constantes matemáticas tratadas como valores REAL.
     private static final Set<String> CONSTANTES_MATEMATICAS = new HashSet<>(Arrays.asList(
             "PI", "E"
     ));
 
+    // Palabras reservadas que no deben usarse como nombres de variables.
     private static final Set<String> PALABRAS_RESERVADAS = new HashSet<>(Arrays.asList(
             "PROGRAMA", "INICIO", "FIN",
             "ENTERO", "REAL", "CADENA", "CARACTER", "LOGICO",
@@ -53,6 +80,13 @@ public class AnalizadorSemantico {
             "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
     );
 
+    /**
+     * Método principal de la fase semántica.
+     *
+     * Limpia comentarios de bloque, recorre el código línea por línea y envía
+     * cada instrucción a la validación correspondiente. Al final construye el
+     * resultado con errores y tabla de símbolos.
+     */
     public ResultadoSemantico analizar(String codigoFuente) {
         if (codigoFuente == null || codigoFuente.trim().isEmpty()) {
             errores.add(new ErrorSemantico(1, "", "No hay código fuente para analizar."));
@@ -77,6 +111,12 @@ public class AnalizadorSemantico {
         return construirResultado();
     }
 
+    /**
+     * Clasifica una línea de código y decide qué regla semántica aplicarle.
+     *
+     * Este método actúa como despachador: detecta declaraciones, asignaciones,
+     * lectura, impresión, condiciones, ciclos, evaluar/caso y graficar.
+     */
     private void analizarLinea(String linea, int numeroLinea) {
         String lineaSinLlaves = linea.replace("{", "").replace("}", "").trim();
 
@@ -138,18 +178,26 @@ public class AnalizadorSemantico {
         }
     }
 
+    /** Indica si una línea inicia una estructura SI. */
     private boolean esInicioSi(String linea) {
         return linea.equals("SI")
                 || linea.startsWith("SI ")
                 || linea.startsWith("SI(");
     }
 
+    /** Indica si una línea inicia una estructura MIENTRAS. */
     private boolean esInicioMientras(String linea) {
         return linea.equals("MIENTRAS")
                 || linea.startsWith("MIENTRAS ")
                 || linea.startsWith("MIENTRAS(");
     }
 
+    /**
+     * Valida una declaración de variable.
+     *
+     * Revisa nombre reservado, duplicidad en la tabla de símbolos y, si trae
+     * valor inicial, compatibilidad entre el tipo declarado y la expresión.
+     */
     private void analizarDeclaracion(Matcher declaracion, int numeroLinea) {
         String tipo = declaracion.group(1);
         String nombre = declaracion.group(2);
@@ -187,6 +235,12 @@ public class AnalizadorSemantico {
         }
     }
 
+    /**
+     * Valida una asignación.
+     *
+     * Confirma que la variable exista y que la expresión asignada sea compatible
+     * con el tipo declarado previamente.
+     */
     private void analizarAsignacion(Matcher asignacion, int numeroLinea) {
         String nombre = asignacion.group(1);
         String expresion = limpiarExpresion(asignacion.group(2));
@@ -210,6 +264,12 @@ public class AnalizadorSemantico {
         }
     }
 
+    /**
+     * Valida la instrucción LEER(variable).
+     *
+     * LEER solo puede recibir una variable existente; al leerla, se marca como
+     * inicializada porque recibirá un valor en ejecución.
+     */
     private void analizarLeer(String linea, int numeroLinea) {
         String contenido = extraerContenidoFuncion(linea, "LEER");
         contenido = contenido.replace(";", "").trim();
@@ -232,6 +292,12 @@ public class AnalizadorSemantico {
         }
     }
 
+    /**
+     * Valida la instrucción IMPRIMIR(expresion).
+     *
+     * No restringe el tipo de salida, pero sí revisa que las variables usadas
+     * existan y que la expresión sea semánticamente válida.
+     */
     private void analizarImprimir(String linea, int numeroLinea) {
         String contenido = extraerContenidoFuncion(linea, "IMPRIMIR");
 
@@ -243,6 +309,12 @@ public class AnalizadorSemantico {
         inferirTipo(contenido, numeroLinea, "imprimir");
     }
 
+    /**
+     * Valida condiciones de SI y MIENTRAS.
+     *
+     * La regla semántica principal exige que la expresión dentro de paréntesis
+     * sea LOGICA.
+     */
     private void analizarCondicion(String linea, int numeroLinea, String instruccion) {
         String condicion = extraerEntreParentesis(linea);
 
@@ -259,6 +331,10 @@ public class AnalizadorSemantico {
         }
     }
 
+    /**
+     * Valida la expresión principal de EVALUAR(...).
+     * La expresión debe existir y estar formada por variables/tipos válidos.
+     */
     private void analizarEvaluar(String linea, int numeroLinea) {
         String expresion = extraerEntreParentesis(linea);
 
@@ -278,6 +354,10 @@ public class AnalizadorSemantico {
         }
     }
 
+    /**
+     * Valida la etiqueta CASO dentro de una estructura EVALUAR.
+     * Revisa que exista un valor después de CASO y antes de los dos puntos.
+     */
     private void analizarCaso(String linea, int numeroLinea) {
         String caso = linea.replaceFirst("^CASO", "").replace(":", "").trim();
 
@@ -289,6 +369,12 @@ public class AnalizadorSemantico {
         inferirTipo(caso, numeroLinea, "caso");
     }
 
+    /**
+     * Valida la instrucción GRAFICAR.
+     *
+     * Para graficar se permite una variable local x de tipo REAL. La expresión
+     * resultante debe ser ENTERO o REAL.
+     */
     private void analizarGraficar(String linea, int numeroLinea) {
         int indiceIgual = linea.indexOf("=");
 
@@ -306,6 +392,12 @@ public class AnalizadorSemantico {
         }
     }
 
+    /**
+     * Infiere el tipo de una expresión.
+     *
+     * Es el método central del análisis semántico. Reconoce literales, variables,
+     * constantes, funciones, operadores lógicos, relacionales y aritméticos.
+     */
     private String inferirTipo(String expresion, int numeroLinea, String contexto) {
         expresion = limpiarExpresion(expresion);
 
@@ -394,6 +486,10 @@ public class AnalizadorSemantico {
         return "DESCONOCIDO";
     }
 
+    /**
+     * Infiere el tipo de una expresión de gráfica asegurando que exista x.
+     * La variable x se registra como variable local de gráfica.
+     */
     private String inferirTipoConVariableLocalX(String expresion, int numeroLinea) {
         if (!tabla.existe("x")) {
             tabla.declarar(new Simbolo("x", "REAL", "VARIABLE_LOCAL_GRAFICA", numeroLinea, true));
@@ -402,6 +498,10 @@ public class AnalizadorSemantico {
         return inferirTipo(expresion, numeroLinea, "graficar");
     }
 
+    /**
+     * Valida llamadas a funciones matemáticas y devuelve su tipo resultante.
+     * En Turbo X las funciones matemáticas devuelven REAL.
+     */
     private String inferirTipoFuncion(LlamadaFuncion llamada, int numeroLinea) {
         String nombre = llamada.nombre.toUpperCase();
 
@@ -436,6 +536,10 @@ public class AnalizadorSemantico {
         return "REAL";
     }
 
+    /**
+     * Valida operaciones relacionales como >, <, >=, <=, == y !=.
+     * Toda comparación válida produce un resultado LOGICO.
+     */
     private String inferirTipoRelacional(Operacion op, int numeroLinea) {
         String tipoIzquierda = inferirTipo(op.izquierda, numeroLinea, "relacional");
         String tipoDerecha = inferirTipo(op.derecha, numeroLinea, "relacional");
@@ -463,6 +567,10 @@ public class AnalizadorSemantico {
         return "LOGICO";
     }
 
+    /**
+     * Valida operaciones aritméticas y decide su tipo resultante.
+     * También detecta división o módulo entre cero cuando el divisor es constante.
+     */
     private String inferirTipoAritmetico(Operacion op, int numeroLinea) {
         String tipoIzquierda = inferirTipo(op.izquierda, numeroLinea, "aritmetico");
         String tipoDerecha = inferirTipo(op.derecha, numeroLinea, "aritmetico");
@@ -521,10 +629,15 @@ public class AnalizadorSemantico {
         return "ENTERO";
     }
 
+    /** Indica si un tipo corresponde a texto: CADENA o CARACTER. */
     private boolean esTexto(String tipo) {
         return "CADENA".equals(tipo) || "CARACTER".equals(tipo);
     }
 
+    /**
+     * Busca identificadores dentro de una expresión y valida que estén declarados.
+     * Ignora literales, palabras reservadas, constantes y nombres de funciones.
+     */
     private void validarIdentificadores(String expresion, int numeroLinea) {
         String expresionSinLiterales = quitarLiterales(expresion);
         Matcher matcher = PATRON_IDENTIFICADOR.matcher(expresionSinLiterales);
@@ -550,6 +663,10 @@ public class AnalizadorSemantico {
         }
     }
 
+    /**
+     * Obtiene el tipo de una variable o constante matemática.
+     * Si la variable no existe, registra un error semántico.
+     */
     private String tipoDeIdentificador(String nombre, int numeroLinea) {
         if (CONSTANTES_MATEMATICAS.contains(nombre.toUpperCase())) {
             return "REAL";
@@ -564,6 +681,10 @@ public class AnalizadorSemantico {
         return tabla.obtener(nombre).getTipo();
     }
 
+    /**
+     * Reglas de compatibilidad de tipos.
+     * Se permite asignar ENTERO a REAL, pero no REAL a ENTERO ni texto a número.
+     */
     private boolean esCompatible(String tipoDestino, String tipoOrigen) {
         if (tipoOrigen == null || tipoOrigen.equals("DESCONOCIDO")) {
             return true;
@@ -576,18 +697,22 @@ public class AnalizadorSemantico {
         return tipoDestino.equals("REAL") && tipoOrigen.equals("ENTERO");
     }
 
+    /** Indica si un tipo permite operaciones matemáticas. */
     private boolean esNumerico(String tipo) {
         return "ENTERO".equals(tipo) || "REAL".equals(tipo);
     }
 
+    /** Busca el operador lógico principal fuera de paréntesis y literales. */
     private Operacion encontrarOperadorLogicoPrincipal(String expresion) {
         return encontrarOperadorPalabraPrincipal(expresion, new String[]{"&&", "||", " Y ", " O "});
     }
 
+    /** Busca el operador relacional principal fuera de paréntesis y literales. */
     private Operacion encontrarOperadorRelacionalPrincipal(String expresion) {
         return encontrarOperadorPrincipal(expresion, new String[]{">=", "<=", "==", "!=", ">", "<"}, false);
     }
 
+    /** Busca el operador aritmético principal respetando prioridad básica. */
     private Operacion encontrarOperadorAritmeticoPrincipal(String expresion) {
         Operacion sumaResta = encontrarOperadorPrincipal(expresion, new String[]{"+", "-"}, true);
         if (sumaResta != null) {
@@ -602,6 +727,10 @@ public class AnalizadorSemantico {
         return encontrarOperadorPrincipal(expresion, new String[]{"^"}, true);
     }
 
+    /**
+     * Localiza operadores escritos como palabra o símbolos lógicos.
+     * Recorre de derecha a izquierda para separar la expresión en izquierda/derecha.
+     */
     private Operacion encontrarOperadorPalabraPrincipal(String expresion, String[] operadores) {
         int nivel = 0;
         boolean dentroCadena = false;
@@ -647,6 +776,10 @@ public class AnalizadorSemantico {
         return null;
     }
 
+    /**
+     * Localiza operadores principales respetando paréntesis, cadenas y caracteres.
+     * evitarUnario permite distinguir signos negativos de operadores binarios.
+     */
     private Operacion encontrarOperadorPrincipal(String expresion, String[] operadores, boolean evitarUnario) {
         int nivel = 0;
         boolean dentroCadena = false;
@@ -705,6 +838,9 @@ public class AnalizadorSemantico {
         return null;
     }
 
+    /**
+     * Determina si + o - funciona como signo unario y no como operador binario.
+     */
     private boolean esSignoUnario(String expresion, int posicion) {
         if (posicion == 0) {
             return true;
@@ -724,6 +860,7 @@ public class AnalizadorSemantico {
                 || c == '=' || c == '<' || c == '>' || c == '!';
     }
 
+    /** Extrae nombre y argumentos cuando una expresión tiene forma FUNCION(...). */
     private LlamadaFuncion extraerLlamadaFuncion(String expresion) {
         Matcher matcher = Pattern.compile("^([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\((.*)\\)$").matcher(expresion);
 
@@ -740,6 +877,7 @@ public class AnalizadorSemantico {
         return new LlamadaFuncion(nombre, separarArgumentos(contenido));
     }
 
+    /** Verifica que los paréntesis de una llamada a función cierren correctamente. */
     private boolean parentesisDeFuncionValidos(String expresion, int indiceParentesis) {
         int nivel = 0;
 
@@ -760,6 +898,7 @@ public class AnalizadorSemantico {
         return nivel == 0;
     }
 
+    /** Separa argumentos de una función respetando paréntesis y literales. */
     private List<String> separarArgumentos(String contenido) {
         List<String> argumentos = new ArrayList<>();
 
@@ -801,6 +940,7 @@ public class AnalizadorSemantico {
         return argumentos;
     }
 
+    /** Detecta si un identificador está seguido de paréntesis y actúa como función. */
     private boolean esNombreDeFuncionEnExpresion(String expresion, int finIdentificador) {
         int i = finIdentificador;
 
@@ -811,6 +951,7 @@ public class AnalizadorSemantico {
         return i < expresion.length() && expresion.charAt(i) == '(';
     }
 
+    /** Evalúa si una expresión constante representa cero para prevenir /0 y %0. */
     private boolean esExpresionConstanteCero(String expresion) {
         try {
             Double valor = new EvaluadorConstante(expresion).parsear();
@@ -820,6 +961,7 @@ public class AnalizadorSemantico {
         }
     }
 
+    /** Extrae el contenido entre paréntesis de llamadas como IMPRIMIR(...) o LEER(...). */
     private String extraerContenidoFuncion(String linea, String funcion) {
         String contenido = linea.replaceFirst("^" + funcion, "").trim();
 
@@ -830,6 +972,7 @@ public class AnalizadorSemantico {
         return limpiarExpresion(contenido);
     }
 
+    /** Extrae el primer contenido encontrado entre paréntesis. */
     private String extraerEntreParentesis(String linea) {
         int inicio = linea.indexOf("(");
         int fin = linea.lastIndexOf(")");
@@ -841,6 +984,7 @@ public class AnalizadorSemantico {
         return limpiarExpresion(linea.substring(inicio + 1, fin));
     }
 
+    /** Limpia espacios y punto y coma final de una expresión. */
     private String limpiarExpresion(String expresion) {
         if (expresion == null) {
             return "";
@@ -859,6 +1003,7 @@ public class AnalizadorSemantico {
         return limpia;
     }
 
+    /** Determina si los paréntesis externos envuelven toda la expresión. */
     private boolean parentesisExternosValidos(String expresion) {
         int nivel = 0;
         boolean dentroCadena = false;
@@ -893,32 +1038,39 @@ public class AnalizadorSemantico {
         return nivel == 0;
     }
 
+    /** Reconoce literales de cadena entre comillas dobles. */
     private boolean esCadena(String expresion) {
         return expresion.matches("^\".*\"$");
     }
 
+    /** Reconoce literales de carácter entre comillas simples. */
     private boolean esCaracter(String expresion) {
         return expresion.matches("^'.'$");
     }
 
+    /** Reconoce números enteros con signo opcional. */
     private boolean esNumeroEntero(String expresion) {
         return expresion.matches("^-?\\d+$");
     }
 
+    /** Reconoce números reales con parte decimal. */
     private boolean esNumeroReal(String expresion) {
         return expresion.matches("^-?\\d+\\.\\d+$");
     }
 
+    /** Valida la forma léxica de un identificador. */
     private boolean esIdentificadorValido(String texto) {
         return texto.matches("^[a-zA-Z_][a-zA-Z0-9_]*$") && !TIPOS.contains(texto.toUpperCase());
     }
 
+    /** Remueve literales para no confundir texto con identificadores. */
     private String quitarLiterales(String expresion) {
         return expresion
                 .replaceAll("\"([^\"\\\\]|\\\\.)*\"", " ")
                 .replaceAll("'([^'\\\\]|\\\\.)'", " ");
     }
 
+    /** Elimina comentarios // de una línea. */
     private String quitarComentarioLinea(String linea) {
         boolean dentroCadena = false;
 
@@ -937,14 +1089,17 @@ public class AnalizadorSemantico {
         return linea;
     }
 
+    /** Elimina comentarios de bloque antes del análisis línea por línea. */
     private String eliminarComentariosDeBloque(String codigo) {
         return codigo.replaceAll("(?s)/\\*.*?\\*/", "");
     }
 
+    /** Agrega un error semántico a la lista acumulada. */
     private void agregarError(int linea, String lexema, String descripcion) {
         errores.add(new ErrorSemantico(linea, lexema, descripcion));
     }
 
+    /** Construye el objeto final que será enviado al frontend. */
     private ResultadoSemantico construirResultado() {
         boolean correcto = errores.isEmpty();
         String mensaje = correcto
@@ -954,6 +1109,10 @@ public class AnalizadorSemantico {
         return new ResultadoSemantico(correcto, mensaje, errores, tabla.listar());
     }
 
+    /**
+     * Estructura auxiliar para representar una operación binaria detectada.
+     * Guarda lado izquierdo, operador y lado derecho.
+     */
     private static class Operacion {
         private final String izquierda;
         private final String operador;
@@ -966,6 +1125,7 @@ public class AnalizadorSemantico {
         }
     }
 
+    /** Estructura auxiliar para representar una llamada a función matemática. */
     private static class LlamadaFuncion {
         private final String nombre;
         private final List<String> argumentos;
@@ -980,6 +1140,10 @@ public class AnalizadorSemantico {
      * Evaluador simple para expresiones constantes.
      * Se usa solo para detectar divisores como 0, (5 - 5), 2 * 0, etc.
      * Si encuentra variables, lanza excepción y el semántico no reporta división entre cero.
+     */
+    /**
+     * Evaluador mínimo de expresiones constantes numéricas.
+     * Se usa principalmente para detectar divisiones o módulos entre cero.
      */
     private static class EvaluadorConstante {
 

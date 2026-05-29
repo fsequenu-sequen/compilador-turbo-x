@@ -1,3 +1,11 @@
+/** Chimaltenango 30 de mayo 2026
+Proyecto Final Compiladores
+Integrantes: 
+1990-23-4406	Christopher Obryan Mazariegos Crúz
+1990-23-17188	Luis Miguel Vaquiax Camey
+1990-23-10442	Keyner Alejandro Rivera Axpuac
+1990-23-22934	Freyder José Sequén Urlao
+*/
 package com.company.api_compilador.controllers;
 
 import com.company.api_compilador.lexico.AnalizadorLexico;
@@ -12,11 +20,26 @@ import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Controlador REST encargado del análisis léxico.
+ *
+ * Recibe código fuente desde la interfaz web, lo envía al analizador léxico
+ * generado por JFlex y devuelve la lista de tokens encontrados. Cada token
+ * incluye tipo, lexema, línea y columna.
+ */
 @RestController
-@CrossOrigin(origins = "*") // Esto permite que VS Code (o cualquier web) se conecte sin bloqueos de seguridad
+@CrossOrigin(origins = "*") // Permite que el frontend web consuma esta API sin bloqueo CORS.
 public class CompiladorController {
 
-    //Este método recibe solicitudes POST en la ruta /api/analizar
+    /**
+     * Endpoint POST /api/analizar.
+     *
+     * Flujo general:
+     * 1. Recibe un JSON con el campo codigo.
+     * 2. Crea un StringReader para que el lexer lea el texto como flujo.
+     * 3. Extrae tokens uno por uno hasta encontrar EOF.
+     * 4. Devuelve la lista para que Spring Boot la convierta a JSON.
+     */
     @PostMapping("/api/analizar")
     public List<Token> analizarCodigo(@RequestBody PeticionCodigo peticion) {
         List<Token> listaTokens = new ArrayList<>();
@@ -43,8 +66,16 @@ public class CompiladorController {
     }
 }
 
-//Clase auxiliar para recibir el JSON con el código
+/**
+ * DTO auxiliar para deserializar la petición JSON del análisis léxico.
+ *
+ * Ejemplo esperado desde el frontend:
+ * {
+ *   "codigo": "PROGRAMA Demo ... FIN"
+ * }
+ */
 class PeticionCodigo {
+    // Código fuente escrito por el usuario en el editor web.
     private String codigo;
 
     public String getCodigo() {

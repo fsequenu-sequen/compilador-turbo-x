@@ -1,15 +1,19 @@
+/** Chimaltenango 30 de mayo 2026
+Proyecto Final Compiladores
+Integrantes: 
+1990-23-4406	Christopher Obryan Mazariegos Crúz
+1990-23-17188	Luis Miguel Vaquiax Camey
+1990-23-10442	Keyner Alejandro Rivera Axpuac
+1990-23-22934	Freyder José Sequén Urlao
+*/
 package com.company.api_compilador.lexico;
 
+
 /**
- * Enum central de tokens del lenguaje Turbo X.
+ * Enumeración de todos los tokens que Turbo X puede reconocer.
  *
- * Este archivo incluye:
- * 1. Tokens nuevos del lenguaje formal.
- * 2. Tokens antiguos de compatibilidad temporal.
- *
- * ¿Por qué se dejan tokens antiguos?
- * Porque durante el proceso de regeneración puede existir un AnalizadorLexico.java
- * generado con el Lexer.flex anterior. Dejarlos aquí evita errores de compilación.
+ * Incluye palabras reservadas, tipos de datos, operadores, delimitadores,
+ * literales, errores léxicos y tokens de compatibilidad con versiones previas.
  */
 public enum TipoToken {
 

@@ -1,9 +1,28 @@
+/** Chimaltenango 30 de mayo 2026
+Proyecto Final Compiladores
+Integrantes: 
+1990-23-4406	Christopher Obryan Mazariegos Crúz
+1990-23-17188	Luis Miguel Vaquiax Camey
+1990-23-10442	Keyner Alejandro Rivera Axpuac
+1990-23-22934	Freyder José Sequén Urlao
+*/
 package com.company.api_compilador.ejecucion;
 
+/**
+ * Representa un valor en tiempo de ejecución.
+ *
+ * Guarda el tipo de dato Turbo X, el valor real usado internamente por Java
+ * y una versión en texto para mostrar en la interfaz o en la tabla de variables.
+ */
 public class ValorRuntime {
 
+    // Tipo lógico usado por Turbo X: ENTERO, REAL, CADENA, CARACTER o LOGICO.
     private String tipo;
+
+    // Valor interno usado por Java para operar durante la ejecución.
     private Object valor;
+
+    // Versión textual del valor, útil para mostrar resultados en pantalla.
     private String valorTexto;
 
     public ValorRuntime() {
@@ -15,22 +34,27 @@ public class ValorRuntime {
         this.valorTexto = convertirTexto(tipo, valor);
     }
 
+    /** Crea un valor runtime de tipo ENTERO. */
     public static ValorRuntime entero(int valor) {
         return new ValorRuntime("ENTERO", valor);
     }
 
+    /** Crea un valor runtime de tipo REAL. */
     public static ValorRuntime real(double valor) {
         return new ValorRuntime("REAL", valor);
     }
 
+    /** Crea un valor runtime de tipo CADENA. */
     public static ValorRuntime cadena(String valor) {
         return new ValorRuntime("CADENA", valor);
     }
 
+    /** Crea un valor runtime de tipo CARACTER. */
     public static ValorRuntime caracter(String valor) {
         return new ValorRuntime("CARACTER", valor);
     }
 
+    /** Crea un valor runtime de tipo LOGICO. */
     public static ValorRuntime logico(boolean valor) {
         return new ValorRuntime("LOGICO", valor);
     }
@@ -61,10 +85,12 @@ public class ValorRuntime {
         this.valorTexto = valorTexto;
     }
 
+    /** Indica si el valor puede participar en operaciones aritméticas. */
     public boolean esNumerico() {
         return "ENTERO".equals(tipo) || "REAL".equals(tipo);
     }
 
+    /** Convierte ENTERO o REAL a double para cálculos numéricos. */
     public double comoDouble() {
         if ("ENTERO".equals(tipo)) {
             return ((Number) valor).doubleValue();
@@ -77,6 +103,7 @@ public class ValorRuntime {
         throw new RuntimeException("Se esperaba un valor numérico, pero se obtuvo " + tipo + ".");
     }
 
+    /** Obtiene el valor como entero cuando el tipo runtime es ENTERO. */
     public int comoEntero() {
         if ("ENTERO".equals(tipo)) {
             return ((Number) valor).intValue();
@@ -85,6 +112,7 @@ public class ValorRuntime {
         throw new RuntimeException("Se esperaba un valor ENTERO, pero se obtuvo " + tipo + ".");
     }
 
+    /** Obtiene el valor booleano cuando el tipo runtime es LOGICO. */
     public boolean comoBooleano() {
         if ("LOGICO".equals(tipo)) {
             return (Boolean) valor;
@@ -93,10 +121,18 @@ public class ValorRuntime {
         throw new RuntimeException("Se esperaba un valor LOGICO, pero se obtuvo " + tipo + ".");
     }
 
+    /** Devuelve el valor con el formato que debe ver el usuario final. */
     public String comoTextoSalida() {
         return convertirTexto(tipo, valor);
     }
 
+    /**
+     * Normaliza el valor para mostrarlo en salida.
+     *
+     * Ejemplos:
+     * - LOGICO se muestra como VERDADERO o FALSO.
+     * - REAL elimina ceros innecesarios, pero conserva .0 si es entero real.
+     */
     private static String convertirTexto(String tipo, Object valor) {
         if (valor == null) {
             return "";

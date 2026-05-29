@@ -1,5 +1,19 @@
+/** Chimaltenango 30 de mayo 2026
+Proyecto Final Compiladores
+Integrantes: 
+1990-23-4406	Christopher Obryan Mazariegos Crúz
+1990-23-17188	Luis Miguel Vaquiax Camey
+1990-23-10442	Keyner Alejandro Rivera Axpuac
+1990-23-22934	Freyder José Sequén Urlao
+*/
 package com.company.api_compilador.grafica;
 
+/**
+ * Modelo de respuesta del módulo de gráficas.
+ *
+ * Indica si el análisis fue correcto, si se encontró una instrucción GRAFICAR
+ * y los datos necesarios para construir la URL/local visualización de la gráfica.
+ */
 public class ResultadoGrafica {
 
     private boolean correcta;

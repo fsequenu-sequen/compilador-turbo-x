@@ -1,3 +1,11 @@
+/** Chimaltenango 30 de mayo 2026
+Proyecto Final Compiladores
+Integrantes: 
+1990-23-4406	Christopher Obryan Mazariegos Crúz
+1990-23-17188	Luis Miguel Vaquiax Camey
+1990-23-10442	Keyner Alejandro Rivera Axpuac
+1990-23-22934	Freyder José Sequén Urlao
+*/
 package com.company.api_compilador.sintactico;
 
 import java.io.File;
@@ -15,6 +23,7 @@ import java.io.File;
  */
 public class GeneradorSintactico {
 
+    /** Punto de entrada manual para regenerar parser y lexer sintáctico. */
     public static void main(String[] args) {
         String carpetaBase = "src" + File.separator + "main" + File.separator + "java"
                 + File.separator + "com" + File.separator + "company"
@@ -27,6 +36,10 @@ public class GeneradorSintactico {
         generarLexerCup(rutaLexerCup);
     }
 
+    /**
+     * Genera ParserCup.java y SimbolosCup.java a partir de parser.cup.
+     * Usa reflexión para no obligar a tener java-cup completo durante el build normal.
+     */
     private static void generarParser(String rutaCup, String destino) {
         try {
             File archivoCup = new File(rutaCup);
@@ -60,6 +73,7 @@ public class GeneradorSintactico {
         }
     }
 
+    /** Genera LexerCup.java a partir de LexerCup.flex mediante JFlex. */
     private static void generarLexerCup(String rutaLexerCup) {
         try {
             File archivoFlex = new File(rutaLexerCup);

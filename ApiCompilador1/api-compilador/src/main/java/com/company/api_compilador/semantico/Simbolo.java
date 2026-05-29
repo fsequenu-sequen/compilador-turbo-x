@@ -1,5 +1,19 @@
+/** Chimaltenango 30 de mayo 2026
+Proyecto Final Compiladores
+Integrantes: 
+1990-23-4406	Christopher Obryan Mazariegos Crúz
+1990-23-17188	Luis Miguel Vaquiax Camey
+1990-23-10442	Keyner Alejandro Rivera Axpuac
+1990-23-22934	Freyder José Sequén Urlao
+*/
 package com.company.api_compilador.semantico;
 
+/**
+ * Representa una entrada de la tabla de símbolos.
+ *
+ * Cada símbolo describe una variable o elemento reconocido: nombre, tipo,
+ * categoría, línea de declaración y si ya fue inicializado.
+ */
 public class Simbolo {
 
     private String nombre;

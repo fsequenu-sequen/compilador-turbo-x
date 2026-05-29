@@ -1,3 +1,19 @@
+/** Chimaltenango 30 de mayo 2026
+Proyecto Final Compiladores
+Integrantes: 
+1990-23-4406	Christopher Obryan Mazariegos Crúz
+1990-23-17188	Luis Miguel Vaquiax Camey
+1990-23-10442	Keyner Alejandro Rivera Axpuac
+1990-23-22934	Freyder José Sequén Urlao
+*/
+/*
+ * COMENTARIO GENERAL:
+ * Especificación JFlex del lexer usado por JCUP.
+ * A diferencia del lexer léxico visual, este devuelve Symbol para que ParserCup
+ * pueda validar la gramática del lenguaje Turbo X.
+ */
+
+
 /**
  * LexerCup.flex
  * Analizador léxico para alimentar el parser JCUP.

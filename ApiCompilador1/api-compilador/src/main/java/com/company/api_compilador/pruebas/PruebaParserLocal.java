@@ -1,3 +1,11 @@
+/** Chimaltenango 30 de mayo 2026
+Proyecto Final Compiladores
+Integrantes: 
+1990-23-4406	Christopher Obryan Mazariegos Crúz
+1990-23-17188	Luis Miguel Vaquiax Camey
+1990-23-10442	Keyner Alejandro Rivera Axpuac
+1990-23-22934	Freyder José Sequén Urlao
+*/
 package com.company.api_compilador.pruebas;
 
 import com.company.api_compilador.sintactico.LexerCup;
@@ -8,8 +16,13 @@ import java.io.StringReader;
  * Clase simple para probar el parser sin usar la interfaz web.
  * Ejecuta esta clase como main si quieres comprobar rápidamente JCUP.
  */
+/**
+ * Clase de prueba local para validar el parser JCUP sin usar la interfaz web.
+ * No forma parte de los endpoints del backend; sirve como apoyo para desarrollo.
+ */
 public class PruebaParserLocal {
 
+    /** Ejecuta un caso de prueba fijo y muestra resultados en consola. */
     public static void main(String[] args) {
 
         String codigo = """

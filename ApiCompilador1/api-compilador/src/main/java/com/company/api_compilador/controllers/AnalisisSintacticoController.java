@@ -1,3 +1,11 @@
+/** Chimaltenango 30 de mayo 2026
+Proyecto Final Compiladores
+Integrantes: 
+1990-23-4406	Christopher Obryan Mazariegos Crúz
+1990-23-17188	Luis Miguel Vaquiax Camey
+1990-23-10442	Keyner Alejandro Rivera Axpuac
+1990-23-22934	Freyder José Sequén Urlao
+*/
 package com.company.api_compilador.controllers;
 
 import com.company.api_compilador.sintactico.LexerCup;
@@ -13,11 +21,24 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Controlador REST encargado del análisis sintáctico.
+ *
+ * Primero ejecuta un diagnóstico básico para errores comunes, como falta de
+ * punto y coma, paréntesis o llaves desbalanceadas. Si esa revisión no detecta
+ * problemas, ejecuta el parser generado por JCUP para validar la gramática.
+ */
 @RestController
 @RequestMapping("/api")
 @CrossOrigin(origins = "*")
 public class AnalisisSintacticoController {
 
+    /**
+     * Endpoint POST /api/sintactico.
+     *
+     * Recibe el código fuente y devuelve un ResultadoSintactico indicando
+     * si el programa cumple o no con la gramática de Turbo X.
+     */
     @PostMapping("/sintactico")
     public ResultadoSintactico analizarSintaxis(@RequestBody Map<String, String> request) {
         String codigo = request.getOrDefault("codigo", "");
@@ -76,6 +97,12 @@ public class AnalisisSintacticoController {
         }
     }
 
+    /**
+     * Convierte el reporte interno del parser en una lista de mensajes.
+     *
+     * El parser guarda sus observaciones en un StringBuilder; este método
+     * separa cada línea no vacía para enviarla de forma ordenada al frontend.
+     */
     private List<String> extraerErrores(String reporte) {
         List<String> errores = new ArrayList<>();
 
@@ -97,6 +124,13 @@ public class AnalisisSintacticoController {
     /*
      * Diagnóstico previo para errores frecuentes.
      * Esto ayuda a evitar que JCUP reporte el error en una línea en blanco o en la línea siguiente.
+     */
+    /**
+     * Revisión preventiva de errores frecuentes antes de ejecutar JCUP.
+     *
+     * Sirve para mostrar mensajes más entendibles cuando el error es simple,
+     * por ejemplo: falta de punto y coma, falta de ENTONCES, falta de HACER,
+     * o paréntesis/llaves desbalanceadas.
      */
     private List<String> diagnosticarSintaxisBasica(String codigo) {
         List<String> errores = new ArrayList<>();
@@ -158,6 +192,11 @@ public class AnalisisSintacticoController {
         return errores;
     }
 
+    /**
+     * Determina si una línea representa una instrucción que debe terminar
+     * con punto y coma. Las estructuras de bloque, llaves y etiquetas CASO
+     * no requieren punto y coma en esta regla preventiva.
+     */
     private boolean requierePuntoYComa(String linea) {
         String l = linea.trim();
 
@@ -188,6 +227,10 @@ public class AnalisisSintacticoController {
                 || l.startsWith("GRAFICAR");
     }
 
+    /**
+     * Cuenta cuántas veces aparece un carácter en una línea.
+     * Se usa para calcular el balance de paréntesis y llaves.
+     */
     private int contar(String texto, char buscado) {
         int total = 0;
 
@@ -200,6 +243,12 @@ public class AnalisisSintacticoController {
         return total;
     }
 
+    /**
+     * Elimina comentarios de línea iniciados con //.
+     *
+     * Respeta cadenas entre comillas dobles para no cortar textos como
+     * "http://..." o mensajes que contengan // dentro de una cadena.
+     */
     private String quitarComentarioLinea(String linea) {
         boolean dentroCadena = false;
 

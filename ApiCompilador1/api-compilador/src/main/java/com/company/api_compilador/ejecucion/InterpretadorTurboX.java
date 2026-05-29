@@ -1,3 +1,11 @@
+/** Chimaltenango 30 de mayo 2026
+Proyecto Final Compiladores
+Integrantes: 
+1990-23-4406	Christopher Obryan Mazariegos Crúz
+1990-23-17188	Luis Miguel Vaquiax Camey
+1990-23-10442	Keyner Alejandro Rivera Axpuac
+1990-23-22934	Freyder José Sequén Urlao
+*/
 package com.company.api_compilador.ejecucion;
 
 import java.util.ArrayDeque;
@@ -11,14 +19,31 @@ import java.util.Queue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Intérprete del lenguaje Turbo X.
+ *
+ * Ejecuta el código después de las fases de análisis. Mantiene memoria de
+ * variables, administra entradas simuladas para LEER, genera la salida de
+ * IMPRIMIR y controla errores de ejecución.
+ */
 public class InterpretadorTurboX {
 
+    // Protección para evitar que un MIENTRAS infinito congele el backend.
     private static final int LIMITE_BUCLE = 10000;
 
+    // Memoria de ejecución: nombre de variable -> valor actual.
     private final Map<String, ValorRuntime> memoria = new LinkedHashMap<>();
+
+    // Salida producida por instrucciones IMPRIMIR.
     private final List<String> salida = new ArrayList<>();
+
+    // Errores ocurridos mientras se interpreta el programa.
     private final List<String> errores = new ArrayList<>();
+
+    // Cola de datos que simula la entrada del usuario para instrucciones LEER.
     private Queue<String> entradas = new ArrayDeque<>();
+
+    // Contador general de instrucciones ejecutadas.
     private int instruccionesEjecutadas = 0;
 
     private static final Pattern PATRON_DECLARACION = Pattern.compile(
@@ -29,6 +54,12 @@ public class InterpretadorTurboX {
             "^([a-zA-Z_][a-zA-Z0-9_]*)\\s*=\\s*(.+)\\s*;?$"
     );
 
+    /**
+     * Ejecuta un programa Turbo X completo.
+     *
+     * Prepara entradas, normaliza líneas, ubica INICIO/FIN y ejecuta el bloque
+     * principal. Cualquier error controlado se devuelve dentro del resultado.
+     */
     public ResultadoEjecucion ejecutar(String codigoFuente, String entradasTexto) {
         memoria.clear();
         salida.clear();
@@ -62,6 +93,7 @@ public class InterpretadorTurboX {
         return construirResultado();
     }
 
+    /** Construye el resultado final de ejecución para enviarlo como JSON. */
     private ResultadoEjecucion construirResultado() {
         boolean correcto = errores.isEmpty();
         String mensaje = correcto
@@ -71,6 +103,7 @@ public class InterpretadorTurboX {
         return new ResultadoEjecucion(correcto, mensaje, salida, errores, memoria, instruccionesEjecutadas);
     }
 
+    /** Convierte las entradas escritas por el usuario en una cola de valores. */
     private Queue<String> prepararEntradas(String entradasTexto) {
         Queue<String> cola = new ArrayDeque<>();
 
@@ -87,6 +120,10 @@ public class InterpretadorTurboX {
         return cola;
     }
 
+    /**
+     * Limpia y normaliza el código fuente.
+     * Separa llaves pegadas a instrucciones para facilitar la ejecución por bloques.
+     */
     private List<LineaCodigo> prepararLineas(String codigoFuente) {
         String sinComentariosBloque = codigoFuente.replaceAll("(?s)/\\*.*?\\*/", "");
         String[] lineasOriginales = sinComentariosBloque.split("\\R", -1);
@@ -100,6 +137,10 @@ public class InterpretadorTurboX {
         return resultado;
     }
 
+    /**
+     * Divide una línea cuando contiene llaves junto con código.
+     * Ejemplo: "SI (...) {" se convierte en instrucción SI y llave separada.
+     */
     private List<LineaCodigo> expandirLlaves(String linea, int numeroLinea) {
         List<LineaCodigo> resultado = new ArrayList<>();
         StringBuilder actual = new StringBuilder();
@@ -135,6 +176,7 @@ public class InterpretadorTurboX {
         return resultado;
     }
 
+    /** Agrega una línea normalizada solo si contiene texto útil. */
     private void agregarLineaSiTieneContenido(List<LineaCodigo> lineas, String texto, int numeroLinea) {
         String limpia = texto.trim();
 
@@ -143,6 +185,7 @@ public class InterpretadorTurboX {
         }
     }
 
+    /** Elimina comentarios // respetando cadenas entre comillas. */
     private String quitarComentarioLinea(String linea) {
         boolean dentroCadena = false;
         boolean dentroCaracter = false;
@@ -164,6 +207,7 @@ public class InterpretadorTurboX {
         return linea;
     }
 
+    /** Busca una línea exacta a partir de una posición dada. */
     private int buscarLineaExacta(List<LineaCodigo> lineas, String texto, int desde) {
         for (int i = Math.max(0, desde); i < lineas.size(); i++) {
             if (lineas.get(i).texto.equalsIgnoreCase(texto)) {
@@ -174,6 +218,7 @@ public class InterpretadorTurboX {
         return -1;
     }
 
+    /** Localiza la instrucción FIN que cierra el programa. */
     private int buscarFinPrograma(List<LineaCodigo> lineas, int desde) {
         for (int i = lineas.size() - 1; i >= Math.max(0, desde); i--) {
             if (lineas.get(i).texto.equalsIgnoreCase("FIN")) {
@@ -184,6 +229,12 @@ public class InterpretadorTurboX {
         return -1;
     }
 
+    /**
+     * Ejecuta un rango de líneas.
+     *
+     * Detecta estructuras de control y avanza el índice según el tamaño del
+     * bloque ejecutado para no procesar dos veces las mismas instrucciones.
+     */
     private void ejecutarBloque(List<LineaCodigo> lineas, int inicio, int finExclusivo) {
         int i = inicio;
 
@@ -228,6 +279,7 @@ public class InterpretadorTurboX {
         }
     }
 
+    /** Ejecuta instrucciones simples: declaración, asignación, IMPRIMIR, LEER y GRAFICAR. */
     private void ejecutarInstruccionSimple(LineaCodigo linea) {
         String texto = linea.texto.trim();
         String upper = texto.toUpperCase(Locale.ROOT);
@@ -266,6 +318,7 @@ public class InterpretadorTurboX {
         throw error(linea.numero, "Instrucción no reconocida durante la ejecución: " + texto);
     }
 
+    /** Declara una variable y guarda su valor inicial o valor por defecto. */
     private void ejecutarDeclaracion(Matcher declaracion, int numeroLinea) {
         String tipo = declaracion.group(1).toUpperCase(Locale.ROOT);
         String nombre = declaracion.group(2);
@@ -284,6 +337,7 @@ public class InterpretadorTurboX {
         memoria.put(nombre, valor);
     }
 
+    /** Evalúa una expresión y actualiza el valor de una variable existente. */
     private void ejecutarAsignacion(Matcher asignacion, int numeroLinea) {
         String nombre = asignacion.group(1);
         String expresion = limpiarFinSentencia(asignacion.group(2));
@@ -297,6 +351,7 @@ public class InterpretadorTurboX {
         memoria.put(nombre, nuevo);
     }
 
+    /** Ejecuta IMPRIMIR agregando texto a la lista de salida. */
     private void ejecutarImprimir(String linea, int numeroLinea) {
         String contenido = extraerContenidoFuncion(linea, "IMPRIMIR", numeroLinea);
 
@@ -308,6 +363,7 @@ public class InterpretadorTurboX {
         salida.add(valor.comoTextoSalida());
     }
 
+    /** Ejecuta LEER tomando el siguiente valor de la cola de entradas. */
     private void ejecutarLeer(String linea, int numeroLinea) {
         String variable = extraerContenidoFuncion(linea, "LEER", numeroLinea).trim();
 
@@ -328,6 +384,10 @@ public class InterpretadorTurboX {
         memoria.put(variable, convertirEntrada(actual.getTipo(), entrada, numeroLinea, variable));
     }
 
+    /**
+     * Ejecuta una estructura SI/SINO.
+     * Devuelve el índice posterior al bloque para continuar la ejecución.
+     */
     private int ejecutarSi(List<LineaCodigo> lineas, int indiceSi, int finExclusivo) {
         LineaCodigo lineaSi = lineas.get(indiceSi);
         String condicion = extraerEntreParentesis(lineaSi.texto, lineaSi.numero);
@@ -360,6 +420,10 @@ public class InterpretadorTurboX {
         return siguiente;
     }
 
+    /**
+     * Ejecuta un ciclo MIENTRAS mientras la condición sea verdadera.
+     * Usa LIMITE_BUCLE como protección contra ciclos infinitos.
+     */
     private int ejecutarMientras(List<LineaCodigo> lineas, int indiceMientras, int finExclusivo) {
         LineaCodigo lineaMientras = lineas.get(indiceMientras);
         String condicion = extraerEntreParentesis(lineaMientras.texto, lineaMientras.numero);
@@ -383,6 +447,7 @@ public class InterpretadorTurboX {
         return cierre + 1;
     }
 
+    /** Ejecuta la estructura EVALUAR buscando el primer CASO que coincida. */
     private int ejecutarEvaluar(List<LineaCodigo> lineas, int indiceEvaluar, int finExclusivo) {
         LineaCodigo lineaEvaluar = lineas.get(indiceEvaluar);
         ValorRuntime valorEvaluado = evaluarExpresion(extraerEntreParentesis(lineaEvaluar.texto, lineaEvaluar.numero), lineaEvaluar.numero);
@@ -437,6 +502,7 @@ public class InterpretadorTurboX {
         return cierre + 1;
     }
 
+    /** Localiza dónde termina un CASO dentro de EVALUAR. */
     private int buscarFinCaso(List<LineaCodigo> lineas, int inicio, int cierreEvaluar) {
         int i = inicio;
 
@@ -457,6 +523,7 @@ public class InterpretadorTurboX {
         return cierreEvaluar;
     }
 
+    /** Busca la llave de apertura de una estructura de control. */
     private int buscarAperturaBloque(List<LineaCodigo> lineas, int desde, int finExclusivo, int numeroLineaControl) {
         for (int i = desde; i < finExclusivo; i++) {
             if (lineas.get(i).texto.equals("{")) {
@@ -471,6 +538,7 @@ public class InterpretadorTurboX {
         throw error(numeroLineaControl, "Se esperaba '{' para iniciar el bloque.");
     }
 
+    /** Busca la llave de cierre correspondiente manejando bloques anidados. */
     private int buscarCierreBloque(List<LineaCodigo> lineas, int apertura, int finExclusivo) {
         int nivel = 0;
 
@@ -491,6 +559,7 @@ public class InterpretadorTurboX {
         throw error(lineas.get(apertura).numero, "No se encontró '}' para cerrar el bloque.");
     }
 
+    /** Evalúa una expresión y devuelve su ValorRuntime. */
     private ValorRuntime evaluarExpresion(String expresion, int numeroLinea) {
         try {
             return new ParserExpresiones(expresion, numeroLinea).parsear();
@@ -501,6 +570,7 @@ public class InterpretadorTurboX {
         }
     }
 
+    /** Devuelve el valor inicial por defecto de cada tipo Turbo X. */
     private ValorRuntime valorPorDefecto(String tipo) {
         switch (tipo) {
             case "ENTERO":
@@ -518,6 +588,7 @@ public class InterpretadorTurboX {
         }
     }
 
+    /** Convierte valores al tipo destino cuando la asignación lo permite. */
     private ValorRuntime convertirA(String tipoDestino, ValorRuntime valor, int numeroLinea) {
         if (tipoDestino.equals(valor.getTipo())) {
             return valor;
@@ -531,6 +602,7 @@ public class InterpretadorTurboX {
                 "No se puede convertir " + valor.getTipo() + " a " + tipoDestino + " durante la ejecución.");
     }
 
+    /** Convierte un texto de entrada al tipo de la variable usada en LEER. */
     private ValorRuntime convertirEntrada(String tipoDestino, String entrada, int numeroLinea, String variable) {
         String limpia = entrada == null ? "" : entrada.trim();
 
@@ -565,6 +637,7 @@ public class InterpretadorTurboX {
         }
     }
 
+    /** Quita punto y coma final cuando forma parte de una expresión. */
     private String limpiarFinSentencia(String expresion) {
         String limpia = expresion == null ? "" : expresion.trim();
 
@@ -575,6 +648,7 @@ public class InterpretadorTurboX {
         return limpia;
     }
 
+    /** Extrae contenido de llamadas tipo FUNCION(...). */
     private String extraerContenidoFuncion(String linea, String funcion, int numeroLinea) {
         int inicio = linea.indexOf("(");
         int fin = linea.lastIndexOf(")");
@@ -586,6 +660,7 @@ public class InterpretadorTurboX {
         return linea.substring(inicio + 1, fin).trim();
     }
 
+    /** Extrae el contenido entre paréntesis de estructuras de control. */
     private String extraerEntreParentesis(String linea, int numeroLinea) {
         int inicio = linea.indexOf("(");
         int fin = linea.lastIndexOf(")");
@@ -597,6 +672,7 @@ public class InterpretadorTurboX {
         return linea.substring(inicio + 1, fin).trim();
     }
 
+    /** Compara dos valores para operaciones == y !=. */
     private boolean compararIgual(ValorRuntime a, ValorRuntime b) {
         if (a.esNumerico() && b.esNumerico()) {
             return Math.abs(a.comoDouble() - b.comoDouble()) < 0.000000001;
@@ -609,10 +685,12 @@ public class InterpretadorTurboX {
         return a.comoTextoSalida().equals(b.comoTextoSalida());
     }
 
+    /** Crea una excepción controlada con número de línea y mensaje claro. */
     private EjecucionException error(int linea, String mensaje) {
         return new EjecucionException("Línea " + linea + ": " + mensaje);
     }
 
+    /** Guarda una línea normalizada junto con su número original. */
     private static class LineaCodigo {
         private final int numero;
         private final String texto;
@@ -623,16 +701,19 @@ public class InterpretadorTurboX {
         }
     }
 
+    /** Excepción interna para detener la ejecución cuando ocurre un error controlado. */
     private static class EjecucionException extends RuntimeException {
         private EjecucionException(String mensaje) {
             super(mensaje);
         }
     }
 
+    /** Tipos de tokens usados por el parser interno de expresiones. */
     private enum TipoToken {
         NUMERO, CADENA, CARACTER, IDENTIFICADOR, OPERADOR, PARENTESIS_ABRE, PARENTESIS_CIERRA, COMA, FIN
     }
 
+    /** Token interno usado únicamente por el parser de expresiones del intérprete. */
     private static class Token {
         private final TipoToken tipo;
         private final String texto;
@@ -643,6 +724,12 @@ public class InterpretadorTurboX {
         }
     }
 
+    /**
+     * Parser recursivo descendente para expresiones.
+     *
+     * Implementa prioridad de operadores: O, Y, igualdad, relacionales,
+     * suma/resta, multiplicación/división/módulo, potencia, unarios y primarios.
+     */
     private class ParserExpresiones {
 
         private final List<Token> tokens;
@@ -654,6 +741,7 @@ public class InterpretadorTurboX {
             this.numeroLinea = numeroLinea;
         }
 
+        /** Inicia el análisis de una expresión completa. */
         private ValorRuntime parsear() {
             ValorRuntime valor = parseOr();
 
@@ -664,6 +752,7 @@ public class InterpretadorTurboX {
             return valor;
         }
 
+        /** Evalúa operadores lógicos O / ||. */
         private ValorRuntime parseOr() {
             ValorRuntime izquierda = parseAnd();
 
@@ -675,6 +764,7 @@ public class InterpretadorTurboX {
             return izquierda;
         }
 
+        /** Evalúa operadores lógicos Y / &&. */
         private ValorRuntime parseAnd() {
             ValorRuntime izquierda = parseEquality();
 
@@ -686,6 +776,7 @@ public class InterpretadorTurboX {
             return izquierda;
         }
 
+        /** Evalúa operadores de igualdad == y !=. */
         private ValorRuntime parseEquality() {
             ValorRuntime izquierda = parseRelational();
 
@@ -702,6 +793,7 @@ public class InterpretadorTurboX {
             }
         }
 
+        /** Evalúa comparaciones >, <, >= y <=. */
         private ValorRuntime parseRelational() {
             ValorRuntime izquierda = parseAdditive();
 
@@ -724,6 +816,7 @@ public class InterpretadorTurboX {
             }
         }
 
+        /** Evalúa suma, resta y concatenación de texto. */
         private ValorRuntime parseAdditive() {
             ValorRuntime izquierda = parseMultiplicative();
 
@@ -758,6 +851,7 @@ public class InterpretadorTurboX {
             }
         }
 
+        /** Evalúa multiplicación, división y módulo. */
         private ValorRuntime parseMultiplicative() {
             ValorRuntime izquierda = parsePower();
 
@@ -796,6 +890,7 @@ public class InterpretadorTurboX {
             }
         }
 
+        /** Evalúa potencia. */
         private ValorRuntime parsePower() {
             ValorRuntime izquierda = parseUnary();
 
@@ -807,6 +902,7 @@ public class InterpretadorTurboX {
             return izquierda;
         }
 
+        /** Evalúa operadores unarios como NO, ! y signo negativo. */
         private ValorRuntime parseUnary() {
             if (coincideOperador("-")) {
                 ValorRuntime valor = parseUnary();
@@ -830,6 +926,7 @@ public class InterpretadorTurboX {
             return parsePrimary();
         }
 
+        /** Evalúa literales, variables, funciones y expresiones entre paréntesis. */
         private ValorRuntime parsePrimary() {
             Token token = actual();
 
@@ -883,6 +980,7 @@ public class InterpretadorTurboX {
             throw error(numeroLinea, "Expresión inválida. Token recibido: " + token.texto);
         }
 
+        /** Ejecuta funciones matemáticas permitidas por Turbo X. */
         private ValorRuntime ejecutarFuncionMatematica(String nombre, ValorRuntime argumento) {
             double valor = argumento.comoDouble();
             String n = nombre.toLowerCase(Locale.ROOT);
@@ -909,6 +1007,7 @@ public class InterpretadorTurboX {
             }
         }
 
+        /** Convierte una expresión en tokens internos para poder evaluarla. */
         private List<Token> tokenizar(String expresion) {
             List<Token> lista = new ArrayList<>();
             int i = 0;
@@ -1029,10 +1128,12 @@ public class InterpretadorTurboX {
             return lista;
         }
 
+        /** Devuelve el token actual sin consumirlo. */
         private Token actual() {
             return tokens.get(posicion);
         }
 
+        /** Consume y devuelve el token actual. */
         private Token avanzar() {
             if (!actual().tipo.equals(TipoToken.FIN)) {
                 posicion++;
@@ -1041,6 +1142,7 @@ public class InterpretadorTurboX {
             return tokens.get(posicion - 1);
         }
 
+        /** Consume el token actual si coincide con el tipo indicado. */
         private boolean coincide(TipoToken tipo) {
             if (actual().tipo.equals(tipo)) {
                 avanzar();
@@ -1050,6 +1152,7 @@ public class InterpretadorTurboX {
             return false;
         }
 
+        /** Consume el token actual si coincide con el operador indicado. */
         private boolean coincideOperador(String operador) {
             if (actual().tipo.equals(TipoToken.OPERADOR) && actual().texto.equals(operador)) {
                 avanzar();
@@ -1059,6 +1162,7 @@ public class InterpretadorTurboX {
             return false;
         }
 
+        /** Consume un identificador específico, por ejemplo VERDADERO o FALSO. */
         private boolean coincideIdentificador(String identificador) {
             if (actual().tipo.equals(TipoToken.IDENTIFICADOR)
                     && actual().texto.equalsIgnoreCase(identificador)) {
@@ -1069,6 +1173,7 @@ public class InterpretadorTurboX {
             return false;
         }
 
+        /** Exige un token específico; si no aparece, lanza error controlado. */
         private void consumir(TipoToken tipo, String mensaje) {
             if (!coincide(tipo)) {
                 throw error(numeroLinea, mensaje);

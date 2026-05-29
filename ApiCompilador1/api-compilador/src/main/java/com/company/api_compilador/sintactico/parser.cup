@@ -1,4 +1,20 @@
 /*
+ * COMENTARIO GENERAL:
+ * Gramática JCUP del lenguaje Turbo X.
+ * Define terminales, no terminales, reglas sintácticas y acciones que permiten
+ * detectar instrucciones como declaraciones, SI, MIENTRAS, EVALUAR y GRAFICAR.
+ * Al ejecutarse JCUP, este archivo genera ParserCup.java y SimbolosCup.java.
+ */
+
+/** Chimaltenango 30 de mayo 2026
+Proyecto Final Compiladores
+Integrantes: 
+1990-23-4406	Christopher Obryan Mazariegos Crúz
+1990-23-17188	Luis Miguel Vaquiax Camey
+1990-23-10442	Keyner Alejandro Rivera Axpuac
+1990-23-22934	Freyder José Sequén Urlao
+*/
+/*
  * parser.cup
  * Turbo X - Gramática JCUP mejorada.
  *

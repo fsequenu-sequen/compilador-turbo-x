@@ -1,5 +1,5 @@
-/** Chimaltenango 20 de Marzo 2026
-Proyecto compilador lexico
+/** Chimaltenango 30 de mayo 2026
+Proyecto Final
 Integrantes: 
 1990-23-4406	Christopher Obryan Alexander Mazariegos Crúz
 1990-23-17188	Luis Miguel Vaquiax Camey
@@ -11,6 +11,12 @@ package com.company.api_compilador.lexico;
 // Define una clase publica llamada 'Token'.
 // Esta clase sirve como una estructura de datos para almacenar la informacion
 // sobre una unidad lexica (un "token") reconocida por el analizador lexico.
+/**
+ * Representa una unidad léxica reconocida por el analizador léxico.
+ *
+ * Un token contiene el tipo, el texto exacto encontrado y su posición dentro
+ * del código fuente.
+ */
 public class Token {
     
   //Declaramos final para que no se puedan modificar los valores en el futuro  
