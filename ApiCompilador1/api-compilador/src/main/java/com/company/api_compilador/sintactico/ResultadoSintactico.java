@@ -1,4 +1,4 @@
-package com.company.api_compilador;
+package com.company.api_compilador.sintactico;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -6,7 +6,7 @@
  * para comentarios de bloque.
  */
 
-package com.company.api_compilador;
+package com.company.api_compilador.sintactico;
 
 import java_cup.runtime.Symbol;
 

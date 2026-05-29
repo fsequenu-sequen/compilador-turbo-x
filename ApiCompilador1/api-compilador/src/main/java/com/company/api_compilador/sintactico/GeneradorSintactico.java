@@ -1,4 +1,4 @@
-package com.company.api_compilador;
+package com.company.api_compilador.sintactico;
 
 import java.io.File;
 
@@ -18,7 +18,7 @@ public class GeneradorSintactico {
     public static void main(String[] args) {
         String carpetaBase = "src" + File.separator + "main" + File.separator + "java"
                 + File.separator + "com" + File.separator + "company"
-                + File.separator + "api_compilador";
+                + File.separator + "api_compilador" + File.separator + "sintactico";
 
         String rutaCup = carpetaBase + File.separator + "parser.cup";
         String rutaLexerCup = carpetaBase + File.separator + "LexerCup.flex";
@@ -45,7 +45,12 @@ public class GeneradorSintactico {
                     rutaCup
             };
 
-            java_cup.Main.main(argumentosCup);
+            // Se usa reflexión para no obligar al backend a cargar java-cup completo al compilar.
+            // El backend solo necesita java-cup-runtime para ejecutar el parser ya generado.
+            // Si se desea regenerar el parser, debe agregarse java-cup completo temporalmente.
+            Class<?> cupMain = Class.forName("java_cup.Main");
+            java.lang.reflect.Method metodoMain = cupMain.getMethod("main", String[].class);
+            metodoMain.invoke(null, (Object) argumentosCup);
 
             System.out.println("SISTEMA: ParserCup.java y SimbolosCup.java generados correctamente.");
 

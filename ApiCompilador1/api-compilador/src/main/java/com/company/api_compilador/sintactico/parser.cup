@@ -10,7 +10,7 @@
  * 4. Se mantienen SI con SINO y SI sin SINO.
  */
 
-package com.company.api_compilador;
+package com.company.api_compilador.sintactico;
 
 import java_cup.runtime.Symbol;
 import java.net.URLEncoder;

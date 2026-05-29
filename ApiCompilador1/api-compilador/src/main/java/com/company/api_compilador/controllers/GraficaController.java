@@ -1,5 +1,8 @@
-package com.company.api_compilador;
+package com.company.api_compilador.controllers;
 
+import com.company.api_compilador.grafica.ResultadoGrafica;
+import com.company.api_compilador.sintactico.LexerCup;
+import com.company.api_compilador.sintactico.ParserCup;
 import java.io.StringReader;
 import java.util.Map;
 import org.springframework.web.bind.annotation.CrossOrigin;

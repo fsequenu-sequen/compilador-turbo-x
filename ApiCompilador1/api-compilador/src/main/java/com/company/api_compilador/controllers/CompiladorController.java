@@ -1,5 +1,8 @@
-package com.company.api_compilador;
+package com.company.api_compilador.controllers;
 
+import com.company.api_compilador.lexico.AnalizadorLexico;
+import com.company.api_compilador.lexico.TipoToken;
+import com.company.api_compilador.lexico.Token;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;

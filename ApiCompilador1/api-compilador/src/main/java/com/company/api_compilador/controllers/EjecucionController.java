@@ -1,5 +1,8 @@
-package com.company.api_compilador;
+package com.company.api_compilador.controllers;
 
+import com.company.api_compilador.ejecucion.InterpretadorTurboX;
+import com.company.api_compilador.ejecucion.ResultadoEjecucion;
+import com.company.api_compilador.ejecucion.SolicitudEjecucion;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;

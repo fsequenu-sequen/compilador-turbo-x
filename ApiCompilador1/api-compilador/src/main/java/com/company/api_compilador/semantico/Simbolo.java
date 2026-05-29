@@ -1,4 +1,4 @@
-package com.company.api_compilador;
+package com.company.api_compilador.semantico;
 
 public class Simbolo {
 

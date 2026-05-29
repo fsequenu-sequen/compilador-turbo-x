@@ -7,7 +7,7 @@ Integrantes:
 1990-23-22934	Freyder José Sequén Urlao
 **/
 
-package com.company.api_compilador;     
+package com.company.api_compilador.lexico;     
 // Define una clase publica llamada 'Token'.
 // Esta clase sirve como una estructura de datos para almacenar la informacion
 // sobre una unidad lexica (un "token") reconocida por el analizador lexico.

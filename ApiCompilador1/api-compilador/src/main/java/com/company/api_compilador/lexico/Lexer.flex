@@ -12,10 +12,10 @@
  * No confundir con LexerCup.flex, que se usa para JCUP.
  */
 
-package com.company.api_compilador;
+package com.company.api_compilador.lexico;
 
-import com.company.api_compilador.Token;
-import com.company.api_compilador.TipoToken;
+import com.company.api_compilador.lexico.Token;
+import com.company.api_compilador.lexico.TipoToken;
 
 %%
 

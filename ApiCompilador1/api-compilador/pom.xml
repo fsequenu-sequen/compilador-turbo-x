@@ -44,12 +44,12 @@
 			<version>1.9.1</version>
 		</dependency>
 
-		<!-- JCUP: generador del analizador sintáctico -->
-		<dependency>
-			<groupId>com.github.vbmacher</groupId>
-			<artifactId>java-cup</artifactId>
-			<version>11b-20160615-3</version>
-		</dependency>
+		<!--
+		JCUP completo se quitó del backend porque esa dependencia puede intentar resolver
+		com.sun:tools/tools.jar de Java 8 y romper Maven en Java moderno.
+		Para ejecutar el backend solo se necesita java-cup-runtime, porque ParserCup.java
+		y LexerCup.java ya están generados.
+		-->
 
 		<!-- Runtime de JCUP: necesario para Symbol y Scanner -->
 		<dependency>
