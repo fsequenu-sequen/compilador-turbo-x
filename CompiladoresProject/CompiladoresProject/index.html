@@ -1,6 +1,22 @@
+<!--
+    ARCHIVO: index.html
+    FUNCIÓN GENERAL:
+    Este archivo define la estructura visual de la interfaz web del compilador Turbo X.
+    Aquí se crean los paneles, botones, tablas, editor de código, consola, módulo de gráficas
+    y terminal de ejecución. La lógica no se programa aquí, sino en script.js.
+    El diseño visual se controla desde styles.css.
+-->
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <!--
+        HEAD:
+        Contiene la configuración básica del documento HTML:
+        - Codificación UTF-8 para aceptar tildes y caracteres especiales.
+        - Configuración responsive para que la interfaz se adapte a pantallas.
+        - Título de la pestaña del navegador.
+        - Enlace al archivo CSS principal.
+    -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Turbo X Compiler</title>
@@ -8,9 +24,21 @@
 </head>
 <body>
 
+    <!--
+        app-shell:
+        Contenedor principal de toda la aplicación.
+        Se divide en dos zonas principales:
+        1. sidebar: menú lateral de navegación.
+        2. main-content: área donde se muestran editor, resultados y consola.
+    -->
+
     <div class="app-shell">
 
-        <!-- Barra lateral -->
+        <!--
+            BARRA LATERAL:
+            Muestra la identidad del proyecto, el menú de navegación por fases,
+            el estado del servidor y un resumen técnico del compilador.
+        -->
         <aside class="sidebar">
             <div class="brand">
                 <div class="brand-icon">TX</div>
@@ -20,6 +48,11 @@
                 </div>
             </div>
 
+            <!--
+                Menú de navegación:
+                Cada botón tiene data-panel con el id del panel que debe mostrarse.
+                script.js usa este atributo para ocultar/mostrar secciones.
+            -->
             <nav class="menu">
                 <button class="menu-item active" data-panel="editorPanel">
                     <span>⌨️</span>
@@ -47,6 +80,11 @@
                 </button>
             </nav>
 
+            <!--
+                Tarjeta de estado del servidor:
+                El texto con id="serverStatus" se actualiza desde JavaScript
+                para indicar si el backend está conectado, pendiente o con error.
+            -->
             <div class="sidebar-card">
                 <span class="status-dot"></span>
                 <div>
@@ -63,10 +101,20 @@
             </div>
         </aside>
 
-        <!-- Contenido principal -->
+        <!--
+        CONTENIDO PRINCIPAL:
+        Aquí vive toda la zona funcional de la aplicación:
+        encabezado, métricas, editor, resultados por fase, gráficas,
+        ejecución y consola general.
+    -->
         <main class="main-content">
 
-            <!-- Encabezado -->
+            <!--
+            ENCABEZADO SUPERIOR:
+            Contiene los controles principales de uso:
+            cargar archivo, cargar ejemplos, cambiar tema, limpiar resultados,
+            descargar reporte, compilar y ejecutar.
+        -->
             <header class="topbar">
                 <div>
                     <p class="eyebrow">Proyecto compilador</p>
@@ -74,6 +122,10 @@
                 </div>
 
                 <div class="topbar-actions">
+                    <!--
+                    Input oculto para cargar archivos .txt.
+                    El botón visible "Cargar .txt" activa este input desde script.js.
+                -->
                     <input type="file" id="archivoTxt" accept=".txt" hidden>
                     <button class="btn secondary" id="btnArchivo" type="button">Cargar .txt</button>
 
@@ -97,7 +149,12 @@
                 </div>
             </header>
 
-            <!-- Tarjetas de resumen -->
+            <!--
+            TARJETAS DE RESUMEN:
+            Muestran indicadores rápidos de la última compilación:
+            tokens encontrados, errores léxicos, estado sintáctico y estado semántico.
+            Estos valores se actualizan desde script.js.
+        -->
             <section class="dashboard-grid">
                 <article class="metric-card">
                     <span class="metric-label">Tokens</span>
@@ -124,7 +181,12 @@
                 </article>
             </section>
 
-            <!-- Panel de Editor -->
+            <!--
+            PANEL DE EDITOR:
+            Es la sección donde el usuario escribe el código Turbo X.
+            Incluye botones de snippets, numeración de líneas, resaltado de sintaxis,
+            marcas visuales de error y autoguardado local.
+        -->
             <section id="editorPanel" class="workspace-panel active-panel">
                 <div class="panel-header">
                     <div>
@@ -132,6 +194,11 @@
                         <p>Escribe o carga un archivo fuente del lenguaje Turbo X.</p>
                     </div>
 
+                    <!--
+                        Botones rápidos o snippets:
+                        Insertan estructuras comunes del lenguaje Turbo X en el editor.
+                        Cada botón usa data-snippet para indicar qué fragmento insertar.
+                    -->
                     <div class="chip-group snippet-actions editor-snippet-actions">
                         <button class="chip snippet-chip" type="button" data-snippet="programa">PROGRAMA</button>
                         <button class="chip snippet-chip" type="button" data-snippet="declaraciones">DECLARACIONES</button>
@@ -159,10 +226,20 @@
                         </div>
                     </div>
 
+                    <!--
+                        code-wrapper:
+                        Une la columna de números de línea con el editor real.
+                        La capa highlightLayer muestra colores; el textarea recibe la escritura.
+                    -->
                     <div class="code-wrapper">
                         <div id="lineNumbers" class="line-numbers">1</div>
 
                         <div class="highlight-editor">
+                            <!--
+                            errorLineLayer: capa visual para pintar filas con errores o advertencias.
+                            highlightLayer: capa de resaltado de sintaxis.
+                            codigo: textarea transparente donde el usuario escribe realmente.
+                        -->
                             <div id="errorLineLayer" class="error-line-layer" aria-hidden="true"></div>
                             <pre id="highlightLayer" class="highlight-layer" aria-hidden="true"></pre>
                             <textarea id="codigo" class="code-input" spellcheck="false" placeholder="Escribe aquí tu código Turbo X..."></textarea>
@@ -176,7 +253,11 @@
                 </div>
             </section>
 
-            <!-- Panel de Tokens -->
+            <!--
+            PANEL DE TOKENS:
+            Presenta en tabla la salida del análisis léxico generado por el backend.
+            La tabla se llena dinámicamente desde renderTokens() en script.js.
+        -->
             <section id="tokensPanel" class="workspace-panel">
                 <div class="panel-header">
                     <div>
@@ -205,7 +286,11 @@
                 </div>
             </section>
 
-            <!-- Panel Sintáctico -->
+            <!--
+            PANEL SINTÁCTICO:
+            Muestra si el parser JCUP aceptó o rechazó el código.
+            También presenta una representación resumida del árbol sintáctico.
+        -->
             <section id="parserPanel" class="workspace-panel">
                 <div class="panel-header">
                     <div>
@@ -229,7 +314,11 @@
                 </div>
             </section>
 
-            <!-- Panel Semántico -->
+            <!--
+            PANEL SEMÁNTICO:
+            Presenta la tabla de símbolos y los errores de tipos, variables no declaradas,
+            duplicados u otras reglas semánticas detectadas por el backend.
+        -->
             <section id="semanticPanel" class="workspace-panel">
                 <div class="panel-header">
                     <div>
@@ -267,7 +356,11 @@
                 </div>
             </section>
 
-            <!-- Panel Gráficas -->
+            <!--
+            PANEL DE GRÁFICAS:
+            Muestra la instrucción GRAFICAR detectada, la URL generada hacia Desmos
+            y una vista previa interna usando Canvas.
+        -->
             <section id="graphPanel" class="workspace-panel">
                 <div class="panel-header">
                     <div>
@@ -297,13 +390,18 @@
                         </div>
                     </div>
 
+                    <!-- Canvas donde script.js dibuja una vista previa de la función matemática. -->
                     <canvas id="graficaCanvas"></canvas>
                     <p id="graficaAyuda">Gráfica pendiente. Compila un programa con GRAFICAR para visualizarla.</p>
                 </div>
 </section>
 
             
-            <!-- Panel Ejecución -->
+            <!--
+            PANEL DE EJECUCIÓN:
+            Funciona como una terminal interactiva para ejecutar programas Turbo X.
+            Permite capturar entradas cuando el programa usa LEER().
+        -->
             <section id="executionPanel" class="workspace-panel">
                 <div class="panel-header">
                     <div>
@@ -332,7 +430,11 @@
                             </div>
                         </div>
 
-                        <!-- Se mantiene oculto para compatibilidad con código anterior, pero ya no se usa como entrada principal. -->
+                        <!--
+                        entradaPrograma:
+                        Campo oculto mantenido por compatibilidad con versiones anteriores.
+                        La entrada activa ahora se realiza en terminalInput.
+                    -->
                         <textarea id="entradaPrograma" class="runtime-input-hidden" spellcheck="false"></textarea>
 
                         <div class="terminal-window" id="terminalWindow">
@@ -370,7 +472,11 @@
                 </article>
             </section>
 
-            <!-- Consola inferior -->
+            <!--
+            CONSOLA INFERIOR:
+            Registra mensajes del sistema, fases ejecutadas, errores de conexión,
+            resultados y acciones realizadas por el usuario.
+        -->
             <section class="console-panel">
                 <div class="console-header">
                     <h3>Consola de compilación</h3>
@@ -385,6 +491,11 @@
         </main>
     </div>
 
+    <!--
+        script.js:
+        Archivo que conecta los botones, consume el backend Spring Boot,
+        actualiza tablas, dibuja gráficas y controla la terminal de ejecución.
+    -->
     <script src="script.js"></script>
 </body>
 </html>

@@ -1,3 +1,11 @@
+/*
+   ARCHIVO: styles.css
+   FUNCIÓN GENERAL:
+   Define toda la apariencia visual del compilador Turbo X.
+   Aquí se controlan colores, distribución, paneles, editor, tablas,
+   consola, terminal, módulo de gráficas, tema claro/oscuro y diseño responsive.
+*/
+
 /*CONFIGURACIÓN DE COLORES - MODO CLARO*/
 
 /* =========================================================
@@ -5,6 +13,11 @@
    Diseño visual preparado para conectar después con Java/Spring Boot
    ========================================================= */
 
+/*
+   Variables globales de diseño:
+   Permiten reutilizar colores, sombras y radios en todo el sitio.
+   Cambiar estos valores modifica gran parte del tema visual.
+*/
 :root {
     --bg-main: #08111f;
     --bg-secondary: #0d1b2e;
@@ -25,10 +38,15 @@
     --radius-md: 12px;
 }
 
+/* box-sizing evita que padding y border aumenten el tamaño final de los elementos. */
 * {
     box-sizing: border-box;
 }
 
+/*
+   Estilos generales del documento:
+   Define fondo, fuente principal y color base del texto.
+*/
 body {
     margin: 0;
     min-height: 100vh;
@@ -50,6 +68,10 @@ button {
     border: none;
 }
 
+/*
+   Contenedor principal en dos columnas:
+   barra lateral fija a la izquierda y contenido principal a la derecha.
+*/
 .app-shell {
     display: grid;
     grid-template-columns: 285px 1fr;
@@ -60,6 +82,10 @@ button {
    SIDEBAR
    ========================================================= */
 
+/*
+   Barra lateral:
+   Permanece visible, contiene navegación y datos del servidor.
+*/
 .sidebar {
     padding: 24px;
     background: rgba(3, 10, 22, 0.72);
@@ -107,6 +133,7 @@ button {
     gap: 10px;
 }
 
+/* Botones del menú lateral que activan cada panel de trabajo. */
 .menu-item {
     width: 100%;
     padding: 13px 14px;
@@ -179,11 +206,13 @@ button {
    MAIN CONTENT
    ========================================================= */
 
+/* Área principal donde se muestran editor, resultados y consola. */
 .main-content {
     padding: 26px;
     overflow: hidden;
 }
 
+/* Encabezado con título y acciones principales de la aplicación. */
 .topbar {
     display: flex;
     align-items: center;
@@ -214,6 +243,7 @@ button {
     justify-content: flex-end;
 }
 
+/* Botones generales reutilizados en toda la interfaz. */
 .btn,
 .tool-btn {
     cursor: pointer;
@@ -264,6 +294,7 @@ button {
    DASHBOARD
    ========================================================= */
 
+/* Tarjetas de métricas: resumen rápido de tokens, errores y estados de análisis. */
 .dashboard-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -301,6 +332,10 @@ button {
    WORKSPACE PANELS
    ========================================================= */
 
+/*
+   Paneles principales:
+   Solo uno se muestra a la vez mediante la clase active-panel.
+*/
 .workspace-panel {
     display: none;
     padding: 20px;
@@ -354,6 +389,7 @@ button {
    EDITOR
    ========================================================= */
 
+/* Contenedor visual del editor de código. */
 .editor-card {
     border-radius: var(--radius-lg);
     overflow: hidden;
@@ -388,6 +424,10 @@ button {
     border: 1px solid var(--border);
 }
 
+/*
+   Une números de línea y área de edición.
+   Algunas reglas posteriores ajustan su altura para mantener alineación exacta.
+*/
 .code-wrapper {
     display: grid;
     grid-template-columns: 58px 1fr;
@@ -395,6 +435,7 @@ button {
     max-height: 520px;
 }
 
+/* Columna de números de línea sincronizada con el scroll del textarea. */
 .line-numbers {
     padding: 16px 12px;
     color: #526179;
@@ -407,6 +448,7 @@ button {
     overflow: hidden;
 }
 
+/* Textarea original del editor usado por compatibilidad con versiones iniciales. */
 #codigo {
     width: 100%;
     min-height: 440px;
@@ -427,6 +469,7 @@ button {
    TABLES
    ========================================================= */
 
+/* Tarjetas que contienen tablas o resultados de análisis. */
 .table-card,
 .result-card {
     border-radius: var(--radius-lg);
@@ -503,6 +546,7 @@ td {
     font-size: 16px;
 }
 
+/* Cajas de mensajes usadas para estado sintáctico, semántico y errores. */
 .result-box {
     padding: 16px;
     border-radius: 14px;
@@ -555,6 +599,7 @@ td {
    CONSOLE
    ========================================================= */
 
+/* Consola inferior donde se muestran mensajes del sistema y fases ejecutadas. */
 .console-panel {
     border-radius: var(--radius-xl);
     background: rgba(0, 0, 0, 0.26);
@@ -600,6 +645,10 @@ td {
    RESPONSIVE
    ========================================================= */
 
+/*
+   Responsive para pantallas medianas:
+   La barra lateral deja de ser columna fija y los paneles se acomodan en una sola columna.
+*/
 @media (max-width: 1100px) {
     .app-shell {
         grid-template-columns: 1fr;
@@ -696,6 +745,10 @@ td {
     min-width: 112px;
 }
 
+/*
+   Tema claro:
+   Sobrescribe las variables de :root para cambiar colores sin duplicar toda la interfaz.
+*/
 body.light-theme {
     --bg-main: #f8fafc;
     --bg-secondary: #eef2ff;
@@ -837,6 +890,10 @@ body.light-theme .chip {
    EDITOR CON RESALTADO DE SINTAXIS
    ========================================================= */
 
+/*
+   Editor con capas:
+   Contiene la capa de resaltado y el textarea transparente donde se escribe.
+*/
 .highlight-editor {
     position: relative;
     min-height: 440px;
@@ -845,6 +902,10 @@ body.light-theme .chip {
     background: transparent;
 }
 
+/*
+   highlight-layer muestra el código coloreado.
+   code-input recibe la escritura real y mantiene el cursor visible.
+*/
 .highlight-layer,
 .code-input {
     position: absolute;
@@ -892,6 +953,7 @@ body.light-theme .chip {
 }
 
 /* Resaltado en tema oscuro */
+/* Colores para cada tipo visual del resaltado de sintaxis Turbo X. */
 .syntax-keyword {
     color: #7dd3fc;
     font-weight: 800;
@@ -1076,6 +1138,7 @@ body.light-theme #autosaveStatus {
    MARCADO DE LÍNEAS CON ERROR Y VALIDACIÓN EN VIVO
    ========================================================= */
 
+/* Capa que pinta fondos en líneas con errores o advertencias. */
 .error-line-layer {
     position: absolute;
     inset: 0;
@@ -1370,6 +1433,7 @@ body.light-theme .code-input::-webkit-scrollbar-thumb {
     margin-top: 10px;
 }
 
+/* Tarjeta contenedora de la vista previa de la gráfica en Canvas. */
 .graph-card,
 #graficaCanvasWrapper {
     margin-top: 18px;
@@ -1861,6 +1925,7 @@ body.light-theme .runtime-help {
     display: none !important;
 }
 
+/* Ventana tipo consola para mostrar salida e ingresar datos con LEER(). */
 .terminal-window {
     min-height: 310px;
     max-height: 440px;
@@ -1967,6 +2032,7 @@ body.light-theme .terminal-input {
    BOTONES RÁPIDOS DEL EDITOR
    ========================================================= */
 
+/* Botones rápidos que insertan estructuras del lenguaje en el editor. */
 .snippet-chip {
     cursor: pointer;
     border: 1px solid rgba(56, 189, 248, 0.30);
@@ -2210,6 +2276,7 @@ body.light-theme .snippet-chip:hover {
    La guía se dibuja dentro de la capa de resaltado.
    No es una capa encima del textarea, por eso no bloquea escritura ni botones.
 */
+/* Guías verticales de indentación dibujadas dentro del resaltado del editor. */
 .syntax-indent-guide {
     display: inline-block;
     width: 37.2px;

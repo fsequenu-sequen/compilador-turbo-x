@@ -13,9 +13,16 @@
    4. Mantiene la gráfica en Canvas como mejora visual adicional.
    ========================================================= */
 
+// URL base del backend Spring Boot. Todas las peticiones fetch usan esta dirección.
 const API_BASE = "http://localhost:8080";
+// Llave usada para guardar automáticamente el código del editor en localStorage.
 const CODIGO_STORAGE_KEY = "turbox_codigo_actual_funcional_guias_v1";
 
+/*
+   REFERENCIAS A ELEMENTOS HTML:
+   Se guardan en constantes para poder leer o modificar el contenido de la interfaz
+   sin tener que buscar cada elemento varias veces en el DOM.
+*/
 const codigo = document.getElementById("codigo");
 const lineNumbers = document.getElementById("lineNumbers");
 const archivoTxt = document.getElementById("archivoTxt");
@@ -64,6 +71,11 @@ const btnLimpiarEntradas = document.getElementById("btnLimpiarEntradas");
 const editorStats = document.getElementById("editorStats");
 const autosaveStatus = document.getElementById("autosaveStatus");
 
+/*
+   VARIABLES DE ESTADO:
+   Mantienen información temporal de la interfaz, de la última compilación,
+   de la ejecución interactiva y de las marcas visuales del editor.
+*/
 let ultimaUrlGrafica = "";
 
 let ejecucionInteractivaActiva = false;
@@ -90,6 +102,7 @@ let lineasConAdvertencia = new Set();
    NAVEGACIÓN ENTRE PANELES
    ========================================================= */
 
+// Cada botón del menú lateral cambia el panel visible sin recargar la página.
 document.querySelectorAll(".menu-item").forEach((button) => {
     button.addEventListener("click", () => {
         document.querySelectorAll(".menu-item").forEach((item) => item.classList.remove("active"));
@@ -114,6 +127,9 @@ document.querySelectorAll(".menu-item").forEach((button) => {
    Insertan fragmentos de código Turbo X.
    ========================================================= */
 
+/**
+ * Activa los botones rápidos del editor y conecta cada botón con el fragmento Turbo X correspondiente.
+ */
 function inicializarSnippetsEditor() {
     document.querySelectorAll(".editor-snippet-actions button[data-snippet]").forEach((boton) => {
         boton.addEventListener("click", (event) => {
@@ -124,6 +140,9 @@ function inicializarSnippetsEditor() {
     });
 }
 
+/**
+ * Selecciona el texto del snippet solicitado y lo envía al editor para insertarlo.
+ */
 function insertarSnippetTurboX(tipo) {
     const snippets = {
         programa:
@@ -207,6 +226,9 @@ LOGICO activo = VERDADERO;`,
     log("Fragmento insertado: " + tipo.toUpperCase() + ".");
 }
 
+/**
+ * Inserta texto en la posición actual del cursor dentro del textarea, conservando el contenido anterior y posterior.
+ */
 function insertarTextoEnEditor(texto) {
     const inicio = codigo.selectionStart ?? codigo.value.length;
     const fin = codigo.selectionEnd ?? codigo.value.length;
@@ -242,11 +264,17 @@ function insertarTextoEnEditor(texto) {
    TEMA CLARO / OSCURO
    ========================================================= */
 
+/**
+ * Carga desde localStorage el tema visual guardado y lo aplica al iniciar la interfaz.
+ */
 function inicializarTema() {
     const temaGuardado = localStorage.getItem("turbox_tema") || "oscuro";
     aplicarTema(temaGuardado, false);
 }
 
+/**
+ * Cambia entre tema claro y oscuro, actualiza el botón visual y guarda la preferencia en localStorage.
+ */
 function aplicarTema(tema, registrarLog = true) {
     const esClaro = tema === "claro";
 
@@ -279,6 +307,9 @@ if (btnTema) {
    Incluye guías de indentación por línea.
    ========================================================= */
 
+/**
+ * Actualiza la capa visual de resaltado de sintaxis para que coincida con el contenido escrito.
+ */
 function aplicarResaltadoTurboX() {
     if (!highlightLayer || !codigo) {
         return;
@@ -289,6 +320,9 @@ function aplicarResaltadoTurboX() {
     sincronizarScrollEditor();
 }
 
+/**
+ * Procesa todo el código línea por línea para generar HTML resaltado.
+ */
 function resaltarCodigoTurboX(texto) {
     return texto
         .split("\n")
@@ -296,6 +330,9 @@ function resaltarCodigoTurboX(texto) {
         .join("\n");
 }
 
+/**
+ * Agrega guías visuales de indentación y resalta los tokens de una línea específica.
+ */
 function resaltarLineaTurboXConGuias(linea) {
     const matchIndentacion = linea.match(/^\s*/);
     const indentacionOriginal = matchIndentacion ? matchIndentacion[0] : "";
@@ -321,6 +358,9 @@ function resaltarLineaTurboXConGuias(linea) {
     return htmlIndentacion + resaltarFragmentoTurboX(resto);
 }
 
+/**
+ * Reconoce comentarios, cadenas, caracteres, números, palabras reservadas, tipos, funciones y operadores para colorearlos.
+ */
 function resaltarFragmentoTurboX(texto) {
     let resultado = "";
     let i = 0;
@@ -486,6 +526,9 @@ function resaltarFragmentoTurboX(texto) {
     return resultado;
 }
 
+/**
+ * Envuelve un fragmento de texto en un span CSS según el tipo de token visual.
+ */
 function envolverToken(valor, clase) {
     return `<span class="syntax-${clase}">${escapeHtml(valor)}</span>`;
 }
@@ -494,6 +537,9 @@ function envolverToken(valor, clase) {
    MARCADO DE LÍNEAS CON ERROR Y VALIDACIÓN EN VIVO
    ========================================================= */
 
+/**
+ * Recibe números de línea con errores y actualiza el conjunto usado para pintarlas en el editor.
+ */
 function marcarLineasConError(lineas) {
     lineasConError = new Set(
         (lineas || [])
@@ -506,12 +552,18 @@ function marcarLineasConError(lineas) {
     actualizarLineas();
 }
 
+/**
+ * Elimina marcas de error y advertencia del editor.
+ */
 function limpiarMarcasErroresVisuales() {
     lineasConError.clear();
     lineasConAdvertencia.clear();
     actualizarLineas();
 }
 
+/**
+ * Ajusta la línea mostrada cuando el backend reporta error en una línea vacía posterior.
+ */
 function ajustarLineaErrorVisual(linea) {
     const lineas = codigo.value.split("\n");
 
@@ -522,12 +574,18 @@ function ajustarLineaErrorVisual(linea) {
     return linea;
 }
 
+/**
+ * Obtiene las líneas donde aparecen tokens de error léxico.
+ */
 function extraerLineasErroresLexicos(tokens) {
     return (tokens || [])
         .filter((token) => esErrorToken(token.tipo))
         .map((token) => token.linea);
 }
 
+/**
+ * Busca números de línea dentro de los mensajes de error sintáctico.
+ */
 function extraerLineasErroresSintacticos(resultado) {
     const errores = resultado && resultado.errores ? resultado.errores : [];
     const lineas = [];
@@ -544,6 +602,9 @@ function extraerLineasErroresSintacticos(resultado) {
     return lineas;
 }
 
+/**
+ * Obtiene las líneas de los errores semánticos devueltos por el backend.
+ */
 function extraerLineasErroresSemanticos(resultado) {
     const errores = resultado && resultado.errores ? resultado.errores : [];
 
@@ -552,6 +613,9 @@ function extraerLineasErroresSemanticos(resultado) {
         .filter((linea) => Number.isInteger(linea) && linea > 0);
 }
 
+/**
+ * Dibuja sobre el editor las franjas visuales de error o advertencia según el scroll actual.
+ */
 function renderMarcasLineas() {
     if (!errorLineLayer || !codigo) {
         return;
@@ -587,6 +651,9 @@ function renderMarcasLineas() {
     errorLineLayer.innerHTML = fragmentos.join("");
 }
 
+/**
+ * Ejecuta la validación ligera con retraso para no validar en cada tecla inmediatamente.
+ */
 function programarValidacionEnVivo() {
     if (validacionEnVivoTimer) {
         clearTimeout(validacionEnVivoTimer);
@@ -597,6 +664,9 @@ function programarValidacionEnVivo() {
     }, 450);
 }
 
+/**
+ * Hace una revisión rápida en el cliente para advertir posibles errores simples antes de compilar.
+ */
 function validarCodigoEnVivo() {
     if (!codigo || lineasConError.size > 0) {
         return;
@@ -659,6 +729,9 @@ function validarCodigoEnVivo() {
     }
 }
 
+/**
+ * Determina si una línea es estructural o comentario y no debe marcarse como advertencia.
+ */
 function debeIgnorarseEnValidacionEnVivo(linea) {
     if (linea === "INICIO" || linea === "FIN") {
         return true;
@@ -683,6 +756,9 @@ function debeIgnorarseEnValidacionEnVivo(linea) {
     return false;
 }
 
+/**
+ * Detecta patrones que probablemente deberían terminar con punto y coma.
+ */
 function posibleFaltaPuntoComa(linea) {
     if (linea.endsWith(";")) {
         return false;
@@ -705,6 +781,9 @@ function posibleFaltaPuntoComa(linea) {
     return patronesQueRequierenPuntoComa.some((patron) => patron.test(linea));
 }
 
+/**
+ * Quita comentarios // sin afectar cadenas o caracteres que contengan diagonales.
+ */
 function quitarComentarioLineaCliente(linea) {
     let dentroCadena = false;
     let dentroCaracter = false;
@@ -728,12 +807,18 @@ function quitarComentarioLineaCliente(linea) {
     return linea;
 }
 
+/**
+ * Verifica si una línea tiene comillas dobles sin cerrar.
+ */
 function tieneComillasDoblesImpares(linea) {
     const sinEscapadas = linea.replace(/\\"/g, "");
     const cantidad = (sinEscapadas.match(/"/g) || []).length;
     return cantidad % 2 !== 0;
 }
 
+/**
+ * Verifica si una línea tiene comillas simples sin cerrar.
+ */
 function tieneComillasSimplesImpares(linea) {
     const sinEscapadas = linea.replace(/\\'/g, "");
     const cantidad = (sinEscapadas.match(/'/g) || []).length;
@@ -742,6 +827,9 @@ function tieneComillasSimplesImpares(linea) {
 
 
 
+/**
+ * Muestra el panel indicado y actualiza el botón activo del menú lateral.
+ */
 function activarPanel(panelId) {
     document.querySelectorAll(".menu-item").forEach((item) => {
         item.classList.toggle("active", item.dataset.panel === panelId);
@@ -757,6 +845,9 @@ function activarPanel(panelId) {
    ========================================================= */
 
 
+/**
+ * Sincroniza el scroll del textarea con números de línea, resaltado y capas visuales.
+ */
 function sincronizarScrollEditor() {
     if (!codigo) {
         return;
@@ -784,6 +875,9 @@ function sincronizarScrollEditor() {
 }
 
 
+/**
+ * Regenera la numeración de líneas, refresca resaltado, marcas, estadísticas y autoguardado.
+ */
 function actualizarLineas() {
     const texto = codigo.value;
     const totalLineas = texto.length === 0 ? 1 : texto.split("\n").length;
@@ -900,6 +994,7 @@ if (btnDescargarReporte) {
    COMPILACIÓN REAL POR FASES
    ========================================================= */
 
+// Evento principal de compilación: ejecuta las fases en orden y detiene el flujo si una falla.
 btnCompilar.addEventListener("click", async () => {
     const fuente = codigo.value.trim();
 
@@ -1029,6 +1124,9 @@ btnCompilar.addEventListener("click", async () => {
    PETICIONES AL BACKEND
    ========================================================= */
 
+/**
+ * Envía el código al endpoint /api/analizar para obtener la lista de tokens.
+ */
 async function analizarLexico(fuente) {
     const respuesta = await fetch(`${API_BASE}/api/analizar`, {
         method: "POST",
@@ -1045,6 +1143,9 @@ async function analizarLexico(fuente) {
     return await respuesta.json();
 }
 
+/**
+ * Envía el código al endpoint /api/sintactico para validar la gramática con JCUP.
+ */
 async function analizarSintactico(fuente) {
     const respuesta = await fetch(`${API_BASE}/api/sintactico`, {
         method: "POST",
@@ -1061,6 +1162,9 @@ async function analizarSintactico(fuente) {
     return await respuesta.json();
 }
 
+/**
+ * Envía el código al endpoint /api/semantico para validar tipos, variables y reglas semánticas.
+ */
 async function analizarSemantico(fuente) {
     const respuesta = await fetch(`${API_BASE}/api/semantico`, {
         method: "POST",
@@ -1077,6 +1181,9 @@ async function analizarSemantico(fuente) {
     return await respuesta.json();
 }
 
+/**
+ * Envía el código al endpoint /api/grafica para detectar GRAFICAR y obtener la URL de Desmos.
+ */
 async function procesarGraficaConJCUP(fuente) {
     const respuesta = await fetch(`${API_BASE}/api/grafica`, {
         method: "POST",
@@ -1093,6 +1200,9 @@ async function procesarGraficaConJCUP(fuente) {
     return await respuesta.json();
 }
 
+/**
+ * Envía el código y las entradas al endpoint /api/ejecutar para interpretar el programa.
+ */
 async function ejecutarProgramaBackend(fuente, entradas) {
     const respuesta = await fetch(`${API_BASE}/api/ejecutar`, {
         method: "POST",
@@ -1117,6 +1227,9 @@ async function ejecutarProgramaBackend(fuente, entradas) {
    RENDER DE TOKENS
    ========================================================= */
 
+/**
+ * Pinta en la tabla HTML todos los tokens devueltos por el analizador léxico.
+ */
 function renderTokens(tokens) {
     if (!tokens || tokens.length === 0) {
         tablaTokens.innerHTML = '<tr><td colspan="5" class="empty-row">No se reconocieron tokens.</td></tr>';
@@ -1134,6 +1247,9 @@ function renderTokens(tokens) {
     `).join("");
 }
 
+/**
+ * Actualiza las métricas de tokens y errores léxicos.
+ */
 function renderResumenLexico(tokens) {
     const errores = contarErroresLexicos(tokens);
 
@@ -1145,6 +1261,9 @@ function renderResumenLexico(tokens) {
    RENDER SINTÁCTICO
    ========================================================= */
 
+/**
+ * Muestra el resultado sintáctico: correcto, errores y árbol sintáctico resumido.
+ */
 function renderSintactico(resultado) {
     if (!resultado) {
         metricSintaxis.textContent = "Sin datos";
@@ -1190,6 +1309,9 @@ function renderSintactico(resultado) {
     }
 }
 
+/**
+ * Indica visualmente que la fase sintáctica no se ejecutó por un error anterior.
+ */
 function renderSintacticoNoEjecutado(motivo) {
     metricSintaxis.textContent = "No ejecutada";
     parserStatus.className = "result-box waiting";
@@ -1204,6 +1326,9 @@ function renderSintacticoNoEjecutado(motivo) {
    RENDER SEMÁNTICO
    ========================================================= */
 
+/**
+ * Muestra tabla de símbolos y mensajes del análisis semántico.
+ */
 function renderSemantico(resultado) {
     const simbolos = resultado && resultado.tablaSimbolos ? resultado.tablaSimbolos : [];
     renderTablaSimbolos(simbolos);
@@ -1243,6 +1368,9 @@ function renderSemantico(resultado) {
     }
 }
 
+/**
+ * Llena la tabla de símbolos con nombre, tipo, valor informativo y estado.
+ */
 function renderTablaSimbolos(simbolos) {
     if (!simbolos || simbolos.length === 0) {
         tablaSimbolos.innerHTML = '<tr><td colspan="4" class="empty-row">No se encontraron símbolos declarados.</td></tr>';
@@ -1264,6 +1392,9 @@ function renderTablaSimbolos(simbolos) {
     }).join("");
 }
 
+/**
+ * Indica visualmente que la fase semántica no se ejecutó por un error anterior.
+ */
 function renderSemanticoNoEjecutado(motivo) {
     metricSemantica.textContent = "No ejecutada";
     tablaSimbolos.innerHTML = '<tr><td colspan="4" class="empty-row">No se generó tabla de símbolos porque la fase semántica no fue ejecutada.</td></tr>';
@@ -1275,6 +1406,9 @@ function renderSemanticoNoEjecutado(motivo) {
 }
 
 
+/**
+ * Garantiza que el contenedor y el canvas de gráficas estén visibles.
+ */
 function asegurarPanelGraficaVisible() {
     const wrapper = document.getElementById("graficaCanvasWrapper");
     const canvas = document.getElementById("graficaCanvas");
@@ -1295,6 +1429,9 @@ function asegurarPanelGraficaVisible() {
    URL OFICIAL DESDE JCUP + VISUALIZACIÓN CANVAS
    ========================================================= */
 
+/**
+ * Muestra la función detectada, la URL de Desmos y dibuja la vista previa en Canvas.
+ */
 function renderGraficaDesdeBackend(resultado) {
     if (!resultado) {
         renderGraficaNoEjecutada("No se recibió respuesta del módulo de gráficas.");
@@ -1328,6 +1465,9 @@ function renderGraficaDesdeBackend(resultado) {
     log("URL de gráfica generada por JCUP: " + resultado.url);
 }
 
+/**
+ * Limpia y marca el módulo gráfico como no ejecutado o no disponible.
+ */
 function renderGraficaNoEjecutada(motivo) {
     funcionDetectada.textContent = "f(x) = no ejecutada";
     urlGrafica.textContent = motivo;
@@ -1337,6 +1477,9 @@ function renderGraficaNoEjecutada(motivo) {
     limpiarCanvasGrafica(motivo);
 }
 
+/**
+ * Crea dinámicamente el canvas si no existe en el HTML.
+ */
 function asegurarCanvasGrafica() {
     let canvas = document.getElementById("graficaCanvas");
 
@@ -1385,6 +1528,9 @@ function asegurarCanvasGrafica() {
     return canvas;
 }
 
+/**
+ * Busca el panel más adecuado donde debería colocarse el canvas.
+ */
 function encontrarContenedorGrafica() {
     const posiblesIds = [
         "graphPanel",
@@ -1409,6 +1555,9 @@ function encontrarContenedorGrafica() {
     return document.body;
 }
 
+/**
+ * Limpia el canvas y muestra un mensaje central cuando no hay gráfica válida.
+ */
 function limpiarCanvasGrafica(mensaje) {
     const canvas = document.getElementById("graficaCanvas");
 
@@ -1452,6 +1601,9 @@ function limpiarCanvasGrafica(mensaje) {
     }
 }
 
+/**
+ * Interpreta una expresión matemática y dibuja su curva en el canvas interno.
+ */
 function dibujarGraficaEnCanvas(expresionTurboX) {
     const canvas = document.getElementById("graficaCanvas");
 
@@ -1685,6 +1837,9 @@ function dibujarGraficaEnCanvas(expresionTurboX) {
     }
 }
 
+/**
+ * Convierte una expresión Turbo X segura en una función JavaScript evaluable para graficar.
+ */
 function crearFuncionMatematica(expresionTurboX) {
     let expr = expresionTurboX.trim();
 
@@ -1729,6 +1884,9 @@ function crearFuncionMatematica(expresionTurboX) {
     `);
 }
 
+/**
+ * Calcula el espaciado adecuado para las líneas horizontales de la cuadrícula.
+ */
 function calcularPasoY(yMin, yMax) {
     const rango = Math.abs(yMax - yMin);
 
@@ -1742,6 +1900,9 @@ function calcularPasoY(yMin, yMax) {
     return Math.pow(10, Math.floor(Math.log10(rango)) - 1);
 }
 
+/**
+ * Genera los valores numéricos que se muestran en el eje Y.
+ */
 function generarEtiquetasY(yMin, yMax, pasoY) {
     const etiquetas = [];
     const inicio = Math.ceil(yMin / pasoY) * pasoY;
@@ -1753,6 +1914,9 @@ function generarEtiquetasY(yMin, yMax, pasoY) {
     return etiquetas;
 }
 
+/**
+ * Da formato corto a números para mostrarlos en etiquetas de la gráfica.
+ */
 function formatearNumero(valor) {
     if (Math.abs(valor) >= 1000) {
         return valor.toFixed(0);
@@ -1783,6 +1947,9 @@ btnAbrirGrafica.addEventListener("click", () => {
    EJECUCIÓN / INTÉRPRETE TURBO X
    ========================================================= */
 
+/**
+ * Valida léxico, sintaxis y semántica antes de iniciar la ejecución del programa.
+ */
 async function ejecutarCodigoDesdeUI() {
     const fuente = codigo.value.trim();
 
@@ -1877,6 +2044,9 @@ async function ejecutarCodigoDesdeUI() {
 }
 
 
+/**
+ * Controla la ejecución con soporte para LEER, esperando entradas del usuario cuando sea necesario.
+ */
 async function ejecutarProgramaInteractivo() {
     ejecucionInteractivaActiva = true;
     ocultarEntradaTerminal(false);
@@ -1908,6 +2078,9 @@ async function ejecutarProgramaInteractivo() {
     ejecucionInteractivaActiva = false;
 }
 
+/**
+ * Detecta si el backend indica que el programa necesita una nueva entrada para LEER().
+ */
 function necesitaEntradaLeer(resultado) {
     if (!resultado || !resultado.errores || resultado.errores.length === 0) {
         return false;
@@ -1919,6 +2092,9 @@ function necesitaEntradaLeer(resultado) {
     );
 }
 
+/**
+ * Actualiza la terminal con salidas, entradas del usuario y errores de ejecución.
+ */
 function renderTerminal(salida, esperandoEntrada, errores = []) {
     const lineas = construirLineasTerminal(salida || []);
 
@@ -1946,6 +2122,9 @@ function renderTerminal(salida, esperandoEntrada, errores = []) {
     }
 }
 
+/**
+ * Combina la salida del programa con el historial de entradas para simular una terminal real.
+ */
 function construirLineasTerminal(salida) {
     const resultado = [];
     const historialOrdenado = [...historialEntradasTerminal].sort((a, b) => a.posicionSalida - b.posicionSalida);
@@ -1968,6 +2147,9 @@ function construirLineasTerminal(salida) {
     return resultado;
 }
 
+/**
+ * Muestra y enfoca el input de terminal cuando el programa espera un dato.
+ */
 function mostrarEntradaTerminal() {
     if (terminalInputRow) {
         terminalInputRow.classList.remove("hidden");
@@ -1984,6 +2166,9 @@ function mostrarEntradaTerminal() {
     }
 }
 
+/**
+ * Oculta o desactiva el input de la terminal cuando no se necesita entrada.
+ */
 function ocultarEntradaTerminal(limpiar = true) {
     if (terminalInputRow) {
         terminalInputRow.classList.add("hidden");
@@ -1998,6 +2183,9 @@ function ocultarEntradaTerminal(limpiar = true) {
     }
 }
 
+/**
+ * Reinicia el estado de ejecución interactiva y limpia la terminal visual.
+ */
 function limpiarTerminalInteractiva() {
     entradasInteractivas = [];
     historialEntradasTerminal = [];
@@ -2011,6 +2199,9 @@ function limpiarTerminalInteractiva() {
     }
 }
 
+/**
+ * Toma el dato escrito por el usuario, lo agrega al historial y continúa la ejecución.
+ */
 async function enviarEntradaTerminal() {
     if (!terminalInput || terminalInput.disabled) {
         return;
@@ -2044,6 +2235,9 @@ async function enviarEntradaTerminal() {
 }
 
 
+/**
+ * Construye una vista textual detallada de una ejecución no interactiva o resultado completo.
+ */
 function renderResultadoEjecucion(resultado) {
     if (!resultado) {
         escribirSalidaPrograma("No se recibió respuesta del módulo de ejecución.");
@@ -2081,12 +2275,18 @@ function renderResultadoEjecucion(resultado) {
     renderTablaVariablesRuntime(resultado.variables || {});
 }
 
+/**
+ * Escribe texto directamente en el área de salida de la terminal.
+ */
 function escribirSalidaPrograma(texto) {
     if (salidaPrograma) {
         salidaPrograma.textContent = texto;
     }
 }
 
+/**
+ * Muestra la memoria final de variables después de ejecutar el programa.
+ */
 function renderTablaVariablesRuntime(variables) {
     if (!tablaVariablesRuntime) {
         return;
@@ -2111,6 +2311,9 @@ function renderTablaVariablesRuntime(variables) {
     }).join("");
 }
 
+/**
+ * Limpia la tabla de variables de ejecución.
+ */
 function limpiarTablaVariablesRuntime() {
     if (tablaVariablesRuntime) {
         tablaVariablesRuntime.innerHTML = '<tr><td colspan="3" class="empty-row">Sin ejecución todavía.</td></tr>';
@@ -2160,10 +2363,16 @@ if (terminalInput) {
    UTILIDADES
    ========================================================= */
 
+/**
+ * Determina si un token representa un error léxico.
+ */
 function esErrorToken(tipo) {
     return tipo && String(tipo).startsWith("ERROR");
 }
 
+/**
+ * Cuenta cuántos tokens de la lista son errores léxicos.
+ */
 function contarErroresLexicos(tokens) {
     if (!tokens || !Array.isArray(tokens)) {
         return 0;
@@ -2172,6 +2381,9 @@ function contarErroresLexicos(tokens) {
     return tokens.filter((token) => esErrorToken(token.tipo)).length;
 }
 
+/**
+ * Agrega un mensaje a la consola inferior de la interfaz.
+ */
 function log(mensaje, tipo = "Sistema") {
     const p = document.createElement("p");
     p.innerHTML = `<span>[${escapeHtml(tipo)}]</span> ${escapeHtml(mensaje)}`;
@@ -2179,6 +2391,9 @@ function log(mensaje, tipo = "Sistema") {
     consola.scrollTop = consola.scrollHeight;
 }
 
+/**
+ * Restablece tablas, métricas, paneles y marcas visuales sin borrar necesariamente el código.
+ */
 function limpiarResultados(limpiarConsola = true) {
     lineasConError.clear();
     lineasConAdvertencia.clear();
@@ -2212,6 +2427,9 @@ function limpiarResultados(limpiarConsola = true) {
     }
 }
 
+/**
+ * Escapa caracteres HTML para evitar que texto externo se interprete como etiquetas.
+ */
 function escapeHtml(value) {
     return String(value)
         .replaceAll("&", "&amp;")
@@ -2226,6 +2444,9 @@ function escapeHtml(value) {
    EJEMPLOS, REPORTE Y AUTOGUARDADO
    ========================================================= */
 
+/**
+ * Devuelve código de ejemplo según el tipo seleccionado en el combo.
+ */
 function obtenerEjemploTurboX(tipo) {
     const ejemplos = {
         correcto: `PROGRAMA PruebaCorrecta
@@ -2331,6 +2552,9 @@ FIN`
     return ejemplos[tipo] || ejemplos.correcto;
 }
 
+/**
+ * Devuelve el nombre amigable del ejemplo seleccionado.
+ */
 function obtenerNombreEjemplo(tipo) {
     const nombres = {
         correcto: "Código correcto",
@@ -2346,6 +2570,9 @@ function obtenerNombreEjemplo(tipo) {
     return nombres[tipo] || "Código correcto";
 }
 
+/**
+ * Crea la estructura inicial del reporte de compilación.
+ */
 function crearReporteBase(fuente) {
     return {
         fecha: new Date().toLocaleString(),
@@ -2358,6 +2585,9 @@ function crearReporteBase(fuente) {
     };
 }
 
+/**
+ * Genera y descarga un archivo .txt con el reporte de compilación.
+ */
 function descargarReporteCompilacion() {
     const reporte = construirTextoReporte();
     const blob = new Blob([reporte], { type: "text/plain;charset=utf-8" });
@@ -2375,6 +2605,9 @@ function descargarReporteCompilacion() {
     log("Reporte de compilación descargado.");
 }
 
+/**
+ * Construye el contenido textual completo del reporte con las fases ejecutadas.
+ */
 function construirTextoReporte() {
     const r = ultimoReporteCompilacion || crearReporteBase(codigo.value.trim());
 
@@ -2553,6 +2786,9 @@ function construirTextoReporte() {
     return texto;
 }
 
+/**
+ * Actualiza el contador de líneas y caracteres del editor.
+ */
 function actualizarEstadisticasEditor() {
     if (!editorStats || !codigo) {
         return;
@@ -2565,6 +2801,9 @@ function actualizarEstadisticasEditor() {
     editorStats.textContent = `Líneas: ${totalLineas} | Caracteres: ${caracteres}`;
 }
 
+/**
+ * Programa el guardado local del código con un pequeño retraso.
+ */
 function programarAutoguardado() {
     if (!codigo) {
         return;
@@ -2579,6 +2818,9 @@ function programarAutoguardado() {
     }, 500);
 }
 
+/**
+ * Guarda el contenido del editor en localStorage.
+ */
 function guardarCodigoLocal() {
     localStorage.setItem(CODIGO_STORAGE_KEY, codigo.value);
 
@@ -2587,6 +2829,9 @@ function guardarCodigoLocal() {
     }
 }
 
+/**
+ * Carga el código autoguardado si el editor está vacío.
+ */
 function cargarCodigoLocal() {
     const codigoGuardado = localStorage.getItem(CODIGO_STORAGE_KEY);
 
@@ -2597,6 +2842,9 @@ function cargarCodigoLocal() {
 }
 
 
+/**
+ * Devuelve un ejemplo general de programa Turbo X usado como referencia.
+ */
 function ejemploTurboX() {
     return `PROGRAMA SistemaNotas
 INICIO
