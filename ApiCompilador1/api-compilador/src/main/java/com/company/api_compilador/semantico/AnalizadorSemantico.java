@@ -69,7 +69,8 @@ public class AnalizadorSemantico {
     ));
 
     private static final Pattern PATRON_DECLARACION = Pattern.compile(
-            "^(ENTERO|REAL|CADENA|CARACTER|LOGICO)\\s+([a-zA-Z_][a-zA-Z0-9_]*)(\\s*=\\s*(.+))?\\s*;?$"
+            "^(ENTERO|REAL|DECIMAL|CADENA|TEXTO|CARACTER|CARÁCTER|LOGICO|LÓGICO)\\s+([a-zA-Z_][a-zA-Z0-9_]*)(\\s*=\\s*(.+))?\\s*;?$",
+            Pattern.CASE_INSENSITIVE
     );
 
     private static final Pattern PATRON_ASIGNACION = Pattern.compile(
@@ -119,15 +120,16 @@ public class AnalizadorSemantico {
      */
     private void analizarLinea(String linea, int numeroLinea) {
         String lineaSinLlaves = linea.replace("{", "").replace("}", "").trim();
+        String lineaMayuscula = lineaSinLlaves.toUpperCase(Locale.ROOT);
 
         if (lineaSinLlaves.isEmpty()
-                || lineaSinLlaves.equals("INICIO")
-                || lineaSinLlaves.equals("FIN")
-                || lineaSinLlaves.equals("PARAR;")
-                || lineaSinLlaves.equals("PARAR")
-                || lineaSinLlaves.equals("SINO")
-                || lineaSinLlaves.equals("OTRO:")
-                || lineaSinLlaves.startsWith("PROGRAMA ")) {
+                || lineaMayuscula.equals("INICIO")
+                || lineaMayuscula.equals("FIN")
+                || lineaMayuscula.equals("PARAR;")
+                || lineaMayuscula.equals("PARAR")
+                || lineaMayuscula.equals("SINO")
+                || lineaMayuscula.equals("OTRO:")
+                || lineaMayuscula.startsWith("PROGRAMA ")) {
             return;
         }
 
@@ -137,12 +139,12 @@ public class AnalizadorSemantico {
             return;
         }
 
-        if (lineaSinLlaves.startsWith("LEER")) {
+        if (lineaMayuscula.startsWith("LEER")) {
             analizarLeer(lineaSinLlaves, numeroLinea);
             return;
         }
 
-        if (lineaSinLlaves.startsWith("IMPRIMIR")) {
+        if (lineaMayuscula.startsWith("IMPRIMIR")) {
             analizarImprimir(lineaSinLlaves, numeroLinea);
             return;
         }
@@ -157,17 +159,17 @@ public class AnalizadorSemantico {
             return;
         }
 
-        if (lineaSinLlaves.startsWith("EVALUAR")) {
+        if (lineaMayuscula.startsWith("EVALUAR")) {
             analizarEvaluar(lineaSinLlaves, numeroLinea);
             return;
         }
 
-        if (lineaSinLlaves.startsWith("CASO")) {
+        if (lineaMayuscula.startsWith("CASO")) {
             analizarCaso(lineaSinLlaves, numeroLinea);
             return;
         }
 
-        if (lineaSinLlaves.startsWith("GRAFICAR")) {
+        if (lineaMayuscula.startsWith("GRAFICAR")) {
             analizarGraficar(lineaSinLlaves, numeroLinea);
             return;
         }
@@ -180,16 +182,18 @@ public class AnalizadorSemantico {
 
     /** Indica si una línea inicia una estructura SI. */
     private boolean esInicioSi(String linea) {
-        return linea.equals("SI")
-                || linea.startsWith("SI ")
-                || linea.startsWith("SI(");
+        String mayuscula = linea.toUpperCase(Locale.ROOT);
+        return mayuscula.equals("SI")
+                || mayuscula.startsWith("SI ")
+                || mayuscula.startsWith("SI(");
     }
 
     /** Indica si una línea inicia una estructura MIENTRAS. */
     private boolean esInicioMientras(String linea) {
-        return linea.equals("MIENTRAS")
-                || linea.startsWith("MIENTRAS ")
-                || linea.startsWith("MIENTRAS(");
+        String mayuscula = linea.toUpperCase(Locale.ROOT);
+        return mayuscula.equals("MIENTRAS")
+                || mayuscula.startsWith("MIENTRAS ")
+                || mayuscula.startsWith("MIENTRAS(");
     }
 
     /**
@@ -199,7 +203,7 @@ public class AnalizadorSemantico {
      * valor inicial, compatibilidad entre el tipo declarado y la expresión.
      */
     private void analizarDeclaracion(Matcher declaracion, int numeroLinea) {
-        String tipo = declaracion.group(1);
+        String tipo = normalizarTipo(declaracion.group(1));
         String nombre = declaracion.group(2);
         String expresionInicial = declaracion.group(4);
 
@@ -359,7 +363,7 @@ public class AnalizadorSemantico {
      * Revisa que exista un valor después de CASO y antes de los dos puntos.
      */
     private void analizarCaso(String linea, int numeroLinea) {
-        String caso = linea.replaceFirst("^CASO", "").replace(":", "").trim();
+        String caso = linea.replaceFirst("(?i)^CASO", "").replace(":", "").trim();
 
         if (caso.isEmpty()) {
             agregarError(numeroLinea, "CASO", "La instrucción CASO necesita un valor.");
@@ -413,7 +417,7 @@ public class AnalizadorSemantico {
             return "CARACTER";
         }
 
-        if (expresion.equals("VERDADERO") || expresion.equals("FALSO")) {
+        if (expresion.equalsIgnoreCase("VERDADERO") || expresion.equalsIgnoreCase("FALSO")) {
             return "LOGICO";
         }
 
@@ -429,7 +433,7 @@ public class AnalizadorSemantico {
             return "REAL";
         }
 
-        if (expresion.startsWith("NO ")) {
+        if (expresion.toUpperCase(Locale.ROOT).startsWith("NO ")) {
             String tipo = inferirTipo(expresion.substring(3), numeroLinea, contexto);
             if (!"LOGICO".equals(tipo) && !"DESCONOCIDO".equals(tipo)) {
                 agregarError(numeroLinea, expresion, "El operador NO solo puede aplicarse a expresiones LOGICAS.");
@@ -576,34 +580,28 @@ public class AnalizadorSemantico {
         String tipoDerecha = inferirTipo(op.derecha, numeroLinea, "aritmetico");
 
         /*
-         * Turbo X ahora permite concatenación formal con el operador +.
-         * Ejemplo válido:
-         *      IMPRIMIR("su edad es " + edad);
-         *
-         * Regla aplicada:
-         * - Si el operador es + y al menos un lado es CADENA o CARACTER,
-         *   la expresión resultante es CADENA.
-         * - Para -, *, /, %, ^ se siguen exigiendo operandos numéricos.
+         * Regla de la rúbrica:
+         * Las operaciones aritméticas solo aceptan ENTERO o REAL.
+         * Por eso expresiones como REAL + CADENA, ENTERO + CARACTER,
+         * LOGICO + REAL o CADENA * ENTERO se reportan como errores semánticos.
          */
-        if (op.operador.equals("+")) {
-            boolean izquierdaTexto = esTexto(tipoIzquierda);
-            boolean derechaTexto = esTexto(tipoDerecha);
-
-            if (izquierdaTexto || derechaTexto) {
-                return "CADENA";
-            }
-        }
-
         if (!esNumerico(tipoIzquierda) && !"DESCONOCIDO".equals(tipoIzquierda)) {
             agregarError(numeroLinea, op.izquierda,
-                    "La operación '" + op.operador + "' contiene un valor de tipo " + tipoIzquierda
-                            + ", pero se esperaba ENTERO o REAL. Para unir texto con valores use el operador + con una CADENA.");
+                    "Operación aritmética inválida: el operador '" + op.operador
+                            + "' recibió un valor de tipo " + tipoIzquierda
+                            + ", pero solo se permiten ENTERO o REAL.");
         }
 
         if (!esNumerico(tipoDerecha) && !"DESCONOCIDO".equals(tipoDerecha)) {
             agregarError(numeroLinea, op.derecha,
-                    "La operación '" + op.operador + "' contiene un valor de tipo " + tipoDerecha
-                            + ", pero se esperaba ENTERO o REAL. Para unir texto con valores use el operador + con una CADENA.");
+                    "Operación aritmética inválida: el operador '" + op.operador
+                            + "' recibió un valor de tipo " + tipoDerecha
+                            + ", pero solo se permiten ENTERO o REAL.");
+        }
+
+        if ((!esNumerico(tipoIzquierda) && !"DESCONOCIDO".equals(tipoIzquierda))
+                || (!esNumerico(tipoDerecha) && !"DESCONOCIDO".equals(tipoDerecha))) {
+            return "DESCONOCIDO";
         }
 
         if (op.operador.equals("/") || op.operador.equals("%")) {
@@ -632,6 +630,30 @@ public class AnalizadorSemantico {
     /** Indica si un tipo corresponde a texto: CADENA o CARACTER. */
     private boolean esTexto(String tipo) {
         return "CADENA".equals(tipo) || "CARACTER".equals(tipo);
+    }
+
+    /** Normaliza alias de tipos aceptados por el lexer hacia los tipos formales de Turbo X. */
+    private String normalizarTipo(String tipo) {
+        if (tipo == null) {
+            return "DESCONOCIDO";
+        }
+
+        String mayuscula = tipo.trim().toUpperCase(Locale.ROOT)
+                .replace("Á", "A")
+                .replace("É", "E")
+                .replace("Í", "I")
+                .replace("Ó", "O")
+                .replace("Ú", "U");
+
+        if (mayuscula.equals("DECIMAL")) {
+            return "REAL";
+        }
+
+        if (mayuscula.equals("TEXTO")) {
+            return "CADENA";
+        }
+
+        return mayuscula;
     }
 
     /**
@@ -724,7 +746,7 @@ public class AnalizadorSemantico {
             return multDiv;
         }
 
-        return encontrarOperadorPrincipal(expresion, new String[]{"^"}, true);
+        return encontrarOperadorPrincipal(expresion, new String[]{"**", "^"}, true);
     }
 
     /**
@@ -820,6 +842,11 @@ public class AnalizadorSemantico {
                     continue;
                 }
 
+                // Evita que el operador de potencia ** sea leído como dos multiplicaciones separadas.
+                if (operador.equals("*") && esParteDePotenciaDoble(expresion, inicio)) {
+                    continue;
+                }
+
                 if (evitarUnario && (operador.equals("+") || operador.equals("-")) && esSignoUnario(expresion, inicio)) {
                     continue;
                 }
@@ -836,6 +863,13 @@ public class AnalizadorSemantico {
         }
 
         return null;
+    }
+
+    /** Indica si un asterisco individual pertenece al operador de potencia **. */
+    private boolean esParteDePotenciaDoble(String expresion, int posicion) {
+        boolean anteriorEsAsterisco = posicion > 0 && expresion.charAt(posicion - 1) == '*';
+        boolean siguienteEsAsterisco = posicion + 1 < expresion.length() && expresion.charAt(posicion + 1) == '*';
+        return anteriorEsAsterisco || siguienteEsAsterisco;
     }
 
     /**
@@ -963,7 +997,7 @@ public class AnalizadorSemantico {
 
     /** Extrae el contenido entre paréntesis de llamadas como IMPRIMIR(...) o LEER(...). */
     private String extraerContenidoFuncion(String linea, String funcion) {
-        String contenido = linea.replaceFirst("^" + funcion, "").trim();
+        String contenido = linea.replaceFirst("(?i)^" + Pattern.quote(funcion), "").trim();
 
         if (contenido.startsWith("(") && contenido.lastIndexOf(")") > 0) {
             contenido = contenido.substring(1, contenido.lastIndexOf(")"));

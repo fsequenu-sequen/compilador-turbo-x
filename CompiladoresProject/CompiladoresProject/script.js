@@ -2546,6 +2546,39 @@ INICIO
     ENTERO numero = 10 / 0;
     REAL residuo = 20 % 0;
     IMPRIMIR(numero);
+FIN`,
+
+        potenciaDoble: `PROGRAMA PruebaPotenciaDoble
+INICIO
+    REAL resultado = 2 ** 3;
+    IMPRIMIR(resultado);
+FIN`,
+
+        realCadena: `PROGRAMA ErrorRealCadena
+INICIO
+    REAL precio = 25.50;
+    CADENA nombre = "quetzales";
+
+    precio = precio + nombre;
+
+    IMPRIMIR(precio);
+FIN`,
+
+        enteroCaracter: `PROGRAMA ErrorEnteroCaracter
+INICIO
+    ENTERO numero = 10;
+    CARACTER letra = 'A';
+
+    numero = numero + letra;
+
+    IMPRIMIR(numero);
+FIN`,
+
+        recuperacionErrores: `PROGRAMA PruebaRecuperacion
+INICIO
+    ENTERO edad = 18
+    REAL total = 10.5;
+    IMPRIMIR(edad);
 FIN`
     };
 
@@ -2564,6 +2597,10 @@ function obtenerNombreEjemplo(tipo) {
         grafica: "Gráfica cuadrática",
         trigonometrica: "Gráfica trigonométrica",
         divisionCero: "División entre cero",
+        potenciaDoble: "Potencia con **",
+        realCadena: "Error REAL + CADENA",
+        enteroCaracter: "Error ENTERO + CARACTER",
+        recuperacionErrores: "Recuperación sintáctica",
         ejecucionLeer: "Ejecución con LEER"
     };
 

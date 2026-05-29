@@ -816,29 +816,23 @@ public class InterpretadorTurboX {
             }
         }
 
-        /** Evalúa suma, resta y concatenación de texto. */
+        /** Evalúa suma y resta. Según la rúbrica, solo valores numéricos pueden operar aritméticamente. */
         private ValorRuntime parseAdditive() {
             ValorRuntime izquierda = parseMultiplicative();
 
             while (true) {
                 if (coincideOperador("+")) {
                     ValorRuntime derecha = parseMultiplicative();
+                    exigirNumericos(izquierda, derecha, "+");
 
-                    /*
-                     * Concatenación formal:
-                     * Si cualquiera de los dos lados es texto, + une valores como cadena.
-                     * Ejemplo: "su edad es " + edad
-                     */
-                    if ("CADENA".equals(izquierda.getTipo()) || "CADENA".equals(derecha.getTipo())
-                            || "CARACTER".equals(izquierda.getTipo()) || "CARACTER".equals(derecha.getTipo())) {
-                        izquierda = ValorRuntime.cadena(izquierda.comoTextoSalida() + derecha.comoTextoSalida());
-                    } else if ("REAL".equals(izquierda.getTipo()) || "REAL".equals(derecha.getTipo())) {
+                    if ("REAL".equals(izquierda.getTipo()) || "REAL".equals(derecha.getTipo())) {
                         izquierda = ValorRuntime.real(izquierda.comoDouble() + derecha.comoDouble());
                     } else {
                         izquierda = ValorRuntime.entero(izquierda.comoEntero() + derecha.comoEntero());
                     }
                 } else if (coincideOperador("-")) {
                     ValorRuntime derecha = parseMultiplicative();
+                    exigirNumericos(izquierda, derecha, "-");
 
                     if ("REAL".equals(izquierda.getTipo()) || "REAL".equals(derecha.getTipo())) {
                         izquierda = ValorRuntime.real(izquierda.comoDouble() - derecha.comoDouble());
@@ -851,6 +845,15 @@ public class InterpretadorTurboX {
             }
         }
 
+        /** Valida que los operandos de una operación aritmética sean ENTERO o REAL. */
+        private void exigirNumericos(ValorRuntime izquierda, ValorRuntime derecha, String operador) {
+            if (!izquierda.esNumerico() || !derecha.esNumerico()) {
+                throw error(numeroLinea,
+                        "Operación aritmética inválida con operador '" + operador
+                                + "'. Solo se permiten valores ENTERO o REAL.");
+            }
+        }
+
         /** Evalúa multiplicación, división y módulo. */
         private ValorRuntime parseMultiplicative() {
             ValorRuntime izquierda = parsePower();
@@ -858,6 +861,7 @@ public class InterpretadorTurboX {
             while (true) {
                 if (coincideOperador("*")) {
                     ValorRuntime derecha = parsePower();
+                    exigirNumericos(izquierda, derecha, "*");
 
                     if ("REAL".equals(izquierda.getTipo()) || "REAL".equals(derecha.getTipo())) {
                         izquierda = ValorRuntime.real(izquierda.comoDouble() * derecha.comoDouble());
@@ -866,6 +870,7 @@ public class InterpretadorTurboX {
                     }
                 } else if (coincideOperador("/")) {
                     ValorRuntime derecha = parsePower();
+                    exigirNumericos(izquierda, derecha, "/");
 
                     if (Math.abs(derecha.comoDouble()) < 0.0000000001) {
                         throw error(numeroLinea, "No se puede dividir entre cero durante la ejecución.");
@@ -874,6 +879,7 @@ public class InterpretadorTurboX {
                     izquierda = ValorRuntime.real(izquierda.comoDouble() / derecha.comoDouble());
                 } else if (coincideOperador("%")) {
                     ValorRuntime derecha = parsePower();
+                    exigirNumericos(izquierda, derecha, "%");
 
                     if (Math.abs(derecha.comoDouble()) < 0.0000000001) {
                         throw error(numeroLinea, "No se puede calcular módulo entre cero durante la ejecución.");
@@ -890,12 +896,13 @@ public class InterpretadorTurboX {
             }
         }
 
-        /** Evalúa potencia. */
+        /** Evalúa potencia con ^ o **. */
         private ValorRuntime parsePower() {
             ValorRuntime izquierda = parseUnary();
 
-            if (coincideOperador("^")) {
+            if (coincideOperador("^") || coincideOperador("**")) {
                 ValorRuntime derecha = parsePower();
+                exigirNumericos(izquierda, derecha, "^");
                 izquierda = ValorRuntime.real(Math.pow(izquierda.comoDouble(), derecha.comoDouble()));
             }
 
@@ -1109,7 +1116,7 @@ public class InterpretadorTurboX {
 
                 String dos = i + 1 < expresion.length() ? expresion.substring(i, i + 2) : "";
 
-                if (Arrays.asList(">=", "<=", "==", "!=", "&&", "||").contains(dos)) {
+                if (Arrays.asList(">=", "<=", "==", "!=", "&&", "||", "**").contains(dos)) {
                     lista.add(new Token(TipoToken.OPERADOR, dos));
                     i += 2;
                     continue;
